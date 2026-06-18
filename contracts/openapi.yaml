@@ -1,0 +1,3436 @@
+openapi: 3.1.0
+
+info:
+  title: EduRoutine API
+  version: "1.0.0"
+  summary: Academic timetable & routine management platform API.
+  description: |
+    Complete API contract for EduRoutine. Generated from approved Phase 3 (Database Design),
+    Phase 5 (API Design), Phase 6 (Authentication) and Phase 7 (Authorization).
+
+    All standards (envelope, versioning, validation, errors, pagination, filtering, sorting,
+    security) are defined in `00-api-standards.md`. This document is the normative machine-readable
+    contract. Per-field DTO validation is catalogued in `dto-catalog.md`; error codes in
+    `error-response-catalog.md`.
+
+    - Success responses use the standard envelope: `{ status, data, meta }`.
+    - Error responses use: `{ status, error }`.
+    - Authentication: Bearer JWT (RS256) by default; `X-API-Key` for M2M.
+  contact:
+    name: EduRoutine API Team
+    url: https://docs.eduroutine.com
+    email: api@eduroutine.com
+  license:
+    name: Proprietary
+  x-api-lifecycle: stable
+
+servers:
+  - url: https://api.eduroutine.com/api/v1
+    description: Production
+  - url: https://staging-api.eduroutine.com/api/v1
+    description: Staging
+  - url: http://localhost:8000/api/v1
+    description: Local
+
+tags:
+  - name: Authentication
+    description: Login, registration, token lifecycle, OAuth2 social login.
+  - name: Users
+    description: User accounts, profile, role & claim assignment.
+  - name: Roles
+    description: Roles and role-permission mappings (RBAC).
+  - name: Claims
+    description: User claim-based authorization entries.
+  - name: Sessions
+    description: Academic sessions (years).
+  - name: Batches
+    description: Student batches within a session/department.
+  - name: Semesters
+    description: Semesters within a session.
+  - name: Sections
+    description: Sections within a batch.
+  - name: Courses
+    description: Course catalog and prerequisites.
+  - name: Students
+    description: Student records, enrollment, schedules.
+  - name: Teachers
+    description: Teacher records, workload, availability, specializations.
+  - name: Rooms
+    description: Physical rooms (all types).
+  - name: Labs
+    description: Laboratory rooms (specialization of Rooms, room_type=lab).
+  - name: Periods
+    description: Period definitions (projection over time slots).
+  - name: TimeSlots
+    description: Concrete time-bounded slots.
+  - name: Classes
+    description: Scheduled class meetings (read projection over routine details).
+  - name: Routines
+    description: Timetables and their lifecycle.
+  - name: RoutineDetails
+    description: Individual schedule entries within a routine.
+
+security:
+  - bearerAuth: []
+
+paths:
+
+  # ============================================================ AUTHENTICATION
+  /auth/register:
+    post:
+      tags: [Authentication]
+      summary: Register a new user
+      operationId: registerUser
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RegisterRequest' }
+      responses:
+        '201':
+          description: User registered; verification email sent.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AuthTokenEnvelope' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /auth/login:
+    post:
+      tags: [Authentication]
+      summary: Authenticate with email and password
+      operationId: login
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LoginRequest' }
+      responses:
+        '200':
+          description: Authenticated.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AuthTokenEnvelope' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /auth/refresh:
+    post:
+      tags: [Authentication]
+      summary: Rotate tokens using a refresh token
+      operationId: refreshToken
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RefreshTokenRequest' }
+      responses:
+        '200':
+          description: New token pair issued (refresh rotated).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AuthTokenEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /auth/logout:
+    post:
+      tags: [Authentication]
+      summary: Revoke the current refresh token and blacklist access token
+      operationId: logout
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RefreshTokenRequest' }
+      responses:
+        '204': { description: Logged out. }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /auth/forgot-password:
+    post:
+      tags: [Authentication]
+      summary: Request a password reset email
+      operationId: forgotPassword
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ForgotPasswordRequest' }
+      responses:
+        '202': { description: If the account exists, a reset email was sent. }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /auth/reset-password:
+    post:
+      tags: [Authentication]
+      summary: Reset password using a reset token
+      operationId: resetPassword
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ResetPasswordRequest' }
+      responses:
+        '204': { description: Password reset; all sessions invalidated. }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+
+  /auth/oauth/{provider}:
+    get:
+      tags: [Authentication]
+      summary: Initiate OAuth2 authorization-code (PKCE) flow
+      operationId: oauthInitiate
+      security: []
+      parameters:
+        - { $ref: '#/components/parameters/OAuthProvider' }
+        - name: redirect_uri
+          in: query
+          required: true
+          schema: { type: string, format: uri }
+        - name: state
+          in: query
+          required: true
+          schema: { type: string, minLength: 16 }
+        - name: code_challenge
+          in: query
+          required: false
+          schema: { type: string }
+      responses:
+        '302': { description: Redirect to provider authorization URL. }
+
+  /auth/oauth/{provider}/callback:
+    get:
+      tags: [Authentication]
+      summary: OAuth2 provider callback (code exchange)
+      operationId: oauthCallback
+      security: []
+      parameters:
+        - { $ref: '#/components/parameters/OAuthProvider' }
+        - name: code
+          in: query
+          required: true
+          schema: { type: string }
+        - name: state
+          in: query
+          required: true
+          schema: { type: string }
+      responses:
+        '302': { description: Redirect to frontend with token fragment. }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  # ============================================================ USERS
+  /users:
+    get:
+      tags: [Users]
+      summary: List users
+      operationId: listUsers
+      x-required-permission: user:read:*
+      parameters:
+        - { $ref: '#/components/parameters/Page' }
+        - { $ref: '#/components/parameters/PageSize' }
+        - { $ref: '#/components/parameters/Sort' }
+        - { $ref: '#/components/parameters/Expand' }
+        - { $ref: '#/components/parameters/Search' }
+        - name: is_active
+          in: query
+          schema: { type: boolean }
+        - name: role
+          in: query
+          schema: { type: string }
+      responses:
+        '200':
+          description: Paginated users.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UserListEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [Users]
+      summary: Create a user
+      operationId: createUser
+      x-required-permission: user:create:*
+      parameters: [ { $ref: '#/components/parameters/IdempotencyKey' } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateUserRequest' }
+      responses:
+        '201':
+          description: Created.
+          headers: { Location: { $ref: '#/components/headers/Location' } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UserEnvelope' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+
+  /users/me:
+    get:
+      tags: [Users]
+      summary: Get current authenticated user
+      operationId: getCurrentUser
+      x-required-permission: user:read:own
+      responses:
+        '200':
+          description: Current user.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UserEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    patch:
+      tags: [Users]
+      summary: Update own profile
+      operationId: updateCurrentUser
+      x-required-permission: user:update:own
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateProfileRequest' }
+      responses:
+        '200':
+          description: Updated.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UserEnvelope' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /users/me/password:
+    put:
+      tags: [Users]
+      summary: Change own password
+      operationId: changePassword
+      x-required-permission: user:update:own
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ChangePasswordRequest' }
+      responses:
+        '204': { description: Password changed; other sessions invalidated. }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+
+  /users/{id}:
+    parameters: [ { $ref: '#/components/parameters/ResourceId' } ]
+    get:
+      tags: [Users]
+      summary: Get a user
+      operationId: getUser
+      x-required-permission: user:read:*
+      parameters: [ { $ref: '#/components/parameters/Expand' } ]
+      responses:
+        '200':
+          description: User.
+          headers: { ETag: { $ref: '#/components/headers/ETag' } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UserEnvelope' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [Users]
+      summary: Replace a user
+      operationId: replaceUser
+      x-required-permission: user:update:*
+      parameters: [ { $ref: '#/components/parameters/IfMatch' } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ReplaceUserRequest' }
+      responses:
+        '200':
+          description: Replaced.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UserEnvelope' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '412': { $ref: '#/components/responses/PreconditionFailed' }
+    patch:
+      tags: [Users]
+      summary: Partially update a user
+      operationId: patchUser
+      x-required-permission: user:update:*
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateUserRequest' }
+      responses:
+        '200':
+          description: Updated.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UserEnvelope' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      tags: [Users]
+      summary: Deactivate a user (soft delete)
+      operationId: deactivateUser
+      x-required-permission: user:delete:*
+      responses:
+        '204': { description: Deactivated. }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /users/{id}/roles:
+    parameters: [ { $ref: '#/components/parameters/ResourceId' } ]
+    get:
+      tags: [Users]
+      summary: Get a user's roles
+      operationId: getUserRoles
+      x-required-permission: user:read:*
+      responses:
+        '200':
+          description: Roles.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RoleListEnvelope' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [Users]
+      summary: Replace a user's role assignments
+      operationId: setUserRoles
+      x-required-permission: role:assign:*
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SetUserRolesRequest' }
+      responses:
+        '200':
+          description: Roles updated.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RoleListEnvelope' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+
+  /users/{id}/claims:
+    parameters: [ { $ref: '#/components/parameters/ResourceId' } ]
+    get:
+      tags: [Claims]
+      summary: List a user's claims
+      operationId: getUserClaims
+      x-required-permission: user:read:*
+      responses:
+        '200':
+          description: Claims.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ClaimListEnvelope' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    post:
+      tags: [Claims]
+      summary: Add a claim to a user
+      operationId: addUserClaim
+      x-required-permission: user:update:*
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateClaimRequest' }
+      responses:
+        '201':
+          description: Claim added.
+          headers: { Location: { $ref: '#/components/headers/Location' } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ClaimEnvelope' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /users/{id}/claims/{claimId}:
+    parameters:
+      - { $ref: '#/components/parameters/ResourceId' }
+      - { $ref: '#/components/parameters/ClaimId' }
+    delete:
+      tags: [Claims]
+      summary: Remove a claim from a user
+      operationId: deleteUserClaim
+      x-required-permission: user:update:*
+      responses:
+        '204': { description: Claim removed. }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  # ============================================================ ROLES
+  /roles:
+    get:
+      tags: [Roles]
+      summary: List roles
+      operationId: listRoles
+      x-required-permission: role:read:*
+      parameters:
+        - { $ref: '#/components/parameters/Page' }
+        - { $ref: '#/components/parameters/PageSize' }
+        - { $ref: '#/components/parameters/Sort' }
+        - { $ref: '#/components/parameters/Search' }
+      responses:
+        '200':
+          description: Roles.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RoleListEnvelope' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [Roles]
+      summary: Create a role
+      operationId: createRole
+      x-required-permission: role:create:*
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateRoleRequest' }
+      responses:
+        '201':
+          description: Created.
+          headers: { Location: { $ref: '#/components/headers/Location' } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RoleEnvelope' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /roles/{id}:
+    parameters: [ { $ref: '#/components/parameters/ResourceId' } ]
+    get:
+      tags: [Roles]
+      summary: Get a role
+      operationId: getRole
+      x-required-permission: role:read:*
+      responses:
+        '200':
+          description: Role.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RoleEnvelope' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [Roles]
+      summary: Update a role
+      operationId: updateRole
+      x-required-permission: role:update:*
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateRoleRequest' }
+      responses:
+        '200':
+          description: Updated.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RoleEnvelope' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+    delete:
+      tags: [Roles]
+      summary: Delete a role
+      operationId: deleteRole
+      x-required-permission: role:delete:*
+      responses:
+        '204': { description: Deleted. }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /roles/{id}/permissions:
+    parameters: [ { $ref: '#/components/parameters/ResourceId' } ]
+    get:
+      tags: [Roles]
+      summary: Get a role's permissions
+      operationId: getRolePermissions
+      x-required-permission: role:read:*
+      responses:
+        '200':
+          description: Permissions.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PermissionListEnvelope' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [Roles]
+      summary: Replace a role's permissions
+      operationId: setRolePermissions
+      x-required-permission: role:update:*
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SetRolePermissionsRequest' }
+      responses:
+        '200':
+          description: Permissions updated.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PermissionListEnvelope' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+
+  /permissions:
+    get:
+      tags: [Roles]
+      summary: List all permissions (catalog)
+      operationId: listPermissions
+      x-required-permission: role:read:*
+      parameters:
+        - { $ref: '#/components/parameters/Page' }
+        - { $ref: '#/components/parameters/PageSize' }
+        - name: module
+          in: query
+          schema: { type: string }
+      responses:
+        '200':
+          description: Permissions.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PermissionListEnvelope' }
+
+  # ============================================================ SESSIONS
+  /sessions:
+    get:
+      tags: [Sessions]
+      summary: List academic sessions
+      operationId: listSessions
+      x-required-permission: session:read:*
+      parameters:
+        - { $ref: '#/components/parameters/Page' }
+        - { $ref: '#/components/parameters/PageSize' }
+        - { $ref: '#/components/parameters/Sort' }
+        - name: is_current
+          in: query
+          schema: { type: boolean }
+      responses:
+        '200':
+          description: Sessions.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SessionListEnvelope' }
+    post:
+      tags: [Sessions]
+      summary: Create a session
+      operationId: createSession
+      x-required-permission: session:create:*
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateSessionRequest' }
+      responses:
+        '201':
+          description: Created.
+          headers: { Location: { $ref: '#/components/headers/Location' } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SessionEnvelope' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+
+  /sessions/{id}:
+    parameters: [ { $ref: '#/components/parameters/ResourceId' } ]
+    get:
+      tags: [Sessions]
+      summary: Get a session
+      operationId: getSession
+      x-required-permission: session:read:*
+      responses:
+        '200':
+          description: Session.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SessionEnvelope' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [Sessions]
+      summary: Update a session
+      operationId: updateSession
+      x-required-permission: session:update:*
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateSessionRequest' }
+      responses:
+        '200':
+          description: Updated.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SessionEnvelope' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+    delete:
+      tags: [Sessions]
+      summary: Delete a session
+      operationId: deleteSession
+      x-required-permission: session:delete:*
+      responses:
+        '204': { description: Deleted. }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /sessions/{id}/activate:
+    parameters: [ { $ref: '#/components/parameters/ResourceId' } ]
+    patch:
+      tags: [Sessions]
+      summary: Set a session as the current session
+      operationId: activateSession
+      x-required-permission: session:update:*
+      responses:
+        '200':
+          description: Session activated (others deactivated).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SessionEnvelope' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  # ============================================================ BATCHES
+  /batches:
+    get:
+      tags: [Batches]
+      summary: List batches
+      operationId: listBatches
+      x-required-permission: batch:read:*
+      parameters:
+        - { $ref: '#/components/parameters/Page' }
+        - { $ref: '#/components/parameters/PageSize' }
+        - { $ref: '#/components/parameters/Sort' }
+        - { $ref: '#/components/parameters/Expand' }
+        - name: session_id
+          in: query
+          schema: { type: string, format: uuid }
+        - name: department_id
+          in: query
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Batches.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BatchListEnvelope' }
+    post:
+      tags: [Batches]
+      summary: Create a batch
+      operationId: createBatch
+      x-required-permission: batch:create:*
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateBatchRequest' }
+      responses:
+        '201':
+          description: Created.
+          headers: { Location: { $ref: '#/components/headers/Location' } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BatchEnvelope' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+
+  /batches/{id}:
+    parameters: [ { $ref: '#/components/parameters/ResourceId' } ]
+    get:
+      tags: [Batches]
+      summary: Get a batch
+      operationId: getBatch
+      x-required-permission: batch:read:*
+      parameters: [ { $ref: '#/components/parameters/Expand' } ]
+      responses:
+        '200':
+          description: Batch.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BatchEnvelope' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [Batches]
+      summary: Update a batch
+      operationId: updateBatch
+      x-required-permission: batch:update:*
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateBatchRequest' }
+      responses:
+        '200':
+          description: Updated.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BatchEnvelope' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+    delete:
+      tags: [Batches]
+      summary: Delete a batch
+      operationId: deleteBatch
+      x-required-permission: batch:delete:*
+      responses:
+        '204': { description: Deleted. }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /batches/{id}/sections:
+    parameters: [ { $ref: '#/components/parameters/ResourceId' } ]
+    get:
+      tags: [Batches]
+      summary: List sections in a batch
+      operationId: listBatchSections
+      x-required-permission: section:read:*
+      responses:
+        '200':
+          description: Sections.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SectionListEnvelope' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /batches/{id}/routines:
+    parameters: [ { $ref: '#/components/parameters/ResourceId' } ]
+    get:
+      tags: [Batches]
+      summary: List routines for a batch
+      operationId: listBatchRoutines
+      x-required-permission: routine:read:*
+      responses:
+        '200':
+          description: Routines.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RoutineListEnvelope' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  # ============================================================ SEMESTERS
+  /semesters:
+    get:
+      tags: [Semesters]
+      summary: List semesters
+      operationId: listSemesters
+      x-required-permission: semester:read:*
+      parameters:
+        - { $ref: '#/components/parameters/Page' }
+        - { $ref: '#/components/parameters/PageSize' }
+        - { $ref: '#/components/parameters/Sort' }
+        - name: session_id
+          in: query
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Semesters.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SemesterListEnvelope' }
+    post:
+      tags: [Semesters]
+      summary: Create a semester
+      operationId: createSemester
+      x-required-permission: semester:create:*
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateSemesterRequest' }
+      responses:
+        '201':
+          description: Created.
+          headers: { Location: { $ref: '#/components/headers/Location' } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SemesterEnvelope' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+
+  /semesters/{id}:
+    parameters: [ { $ref: '#/components/parameters/ResourceId' } ]
+    get:
+      tags: [Semesters]
+      summary: Get a semester
+      operationId: getSemester
+      x-required-permission: semester:read:*
+      responses:
+        '200':
+          description: Semester.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SemesterEnvelope' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [Semesters]
+      summary: Update a semester
+      operationId: updateSemester
+      x-required-permission: semester:update:*
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateSemesterRequest' }
+      responses:
+        '200':
+          description: Updated.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SemesterEnvelope' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+    delete:
+      tags: [Semesters]
+      summary: Delete a semester
+      operationId: deleteSemester
+      x-required-permission: semester:delete:*
+      responses:
+        '204': { description: Deleted. }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  # ============================================================ SECTIONS
+  /sections:
+    get:
+      tags: [Sections]
+      summary: List sections
+      operationId: listSections
+      x-required-permission: section:read:*
+      parameters:
+        - { $ref: '#/components/parameters/Page' }
+        - { $ref: '#/components/parameters/PageSize' }
+        - { $ref: '#/components/parameters/Sort' }
+        - name: batch_id
+          in: query
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Sections.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SectionListEnvelope' }
+    post:
+      tags: [Sections]
+      summary: Create a section
+      operationId: createSection
+      x-required-permission: section:create:*
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateSectionRequest' }
+      responses:
+        '201':
+          description: Created.
+          headers: { Location: { $ref: '#/components/headers/Location' } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SectionEnvelope' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+
+  /sections/{id}:
+    parameters: [ { $ref: '#/components/parameters/ResourceId' } ]
+    get:
+      tags: [Sections]
+      summary: Get a section
+      operationId: getSection
+      x-required-permission: section:read:*
+      responses:
+        '200':
+          description: Section.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SectionEnvelope' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [Sections]
+      summary: Update a section
+      operationId: updateSection
+      x-required-permission: section:update:*
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateSectionRequest' }
+      responses:
+        '200':
+          description: Updated.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SectionEnvelope' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+    delete:
+      tags: [Sections]
+      summary: Delete a section
+      operationId: deleteSection
+      x-required-permission: section:delete:*
+      responses:
+        '204': { description: Deleted. }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /sections/{id}/students:
+    parameters: [ { $ref: '#/components/parameters/ResourceId' } ]
+    get:
+      tags: [Sections]
+      summary: List students in a section
+      operationId: listSectionStudents
+      x-required-permission: student:read:*
+      responses:
+        '200':
+          description: Students.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/StudentListEnvelope' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [Sections]
+      summary: Assign students to a section
+      operationId: assignSectionStudents
+      x-required-permission: student:update:*
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AssignStudentsRequest' }
+      responses:
+        '200':
+          description: Assigned.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/StudentListEnvelope' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+
+  # ============================================================ COURSES
+  /courses:
+    get:
+      tags: [Courses]
+      summary: List courses
+      operationId: listCourses
+      x-required-permission: course:read:*
+      parameters:
+        - { $ref: '#/components/parameters/Page' }
+        - { $ref: '#/components/parameters/PageSize' }
+        - { $ref: '#/components/parameters/Sort' }
+        - { $ref: '#/components/parameters/Expand' }
+        - { $ref: '#/components/parameters/Search' }
+        - name: department_id
+          in: query
+          schema: { type: string, format: uuid }
+        - name: is_active
+          in: query
+          schema: { type: boolean }
+        - name: credits_gte
+          in: query
+          schema: { type: number }
+        - name: credits_lte
+          in: query
+          schema: { type: number }
+      responses:
+        '200':
+          description: Courses.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CourseListEnvelope' }
+    post:
+      tags: [Courses]
+      summary: Create a course
+      operationId: createCourse
+      x-required-permission: course:create:*
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateCourseRequest' }
+      responses:
+        '201':
+          description: Created.
+          headers: { Location: { $ref: '#/components/headers/Location' } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CourseEnvelope' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+
+  /courses/{id}:
+    parameters: [ { $ref: '#/components/parameters/ResourceId' } ]
+    get:
+      tags: [Courses]
+      summary: Get a course
+      operationId: getCourse
+      x-required-permission: course:read:*
+      parameters: [ { $ref: '#/components/parameters/Expand' } ]
+      responses:
+        '200':
+          description: Course.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CourseEnvelope' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [Courses]
+      summary: Update a course
+      operationId: updateCourse
+      x-required-permission: course:update:*
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateCourseRequest' }
+      responses:
+        '200':
+          description: Updated.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CourseEnvelope' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+    delete:
+      tags: [Courses]
+      summary: Deactivate a course (soft delete)
+      operationId: deactivateCourse
+      x-required-permission: course:delete:*
+      responses:
+        '204': { description: Deactivated. }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /courses/{id}/prerequisites:
+    parameters: [ { $ref: '#/components/parameters/ResourceId' } ]
+    get:
+      tags: [Courses]
+      summary: List course prerequisites
+      operationId: listCoursePrerequisites
+      x-required-permission: course:read:*
+      responses:
+        '200':
+          description: Prerequisites.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CourseListEnvelope' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    post:
+      tags: [Courses]
+      summary: Add a prerequisite
+      operationId: addCoursePrerequisite
+      x-required-permission: course:update:*
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AddPrerequisiteRequest' }
+      responses:
+        '201': { description: Prerequisite added. }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+
+  /courses/{id}/prerequisites/{prereqId}:
+    parameters:
+      - { $ref: '#/components/parameters/ResourceId' }
+      - name: prereqId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    delete:
+      tags: [Courses]
+      summary: Remove a prerequisite
+      operationId: deleteCoursePrerequisite
+      x-required-permission: course:update:*
+      responses:
+        '204': { description: Removed. }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  # ============================================================ STUDENTS
+  /students:
+    get:
+      tags: [Students]
+      summary: List students
+      operationId: listStudents
+      x-required-permission: student:read:*
+      parameters:
+        - { $ref: '#/components/parameters/Page' }
+        - { $ref: '#/components/parameters/PageSize' }
+        - { $ref: '#/components/parameters/Sort' }
+        - { $ref: '#/components/parameters/Expand' }
+        - { $ref: '#/components/parameters/Search' }
+        - name: batch_id
+          in: query
+          schema: { type: string, format: uuid }
+        - name: section_id
+          in: query
+          schema: { type: string, format: uuid }
+        - name: status
+          in: query
+          schema: { $ref: '#/components/schemas/StudentStatus' }
+      responses:
+        '200':
+          description: Students.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/StudentListEnvelope' }
+    post:
+      tags: [Students]
+      summary: Create a student record
+      operationId: createStudent
+      x-required-permission: student:create:*
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateStudentRequest' }
+      responses:
+        '201':
+          description: Created.
+          headers: { Location: { $ref: '#/components/headers/Location' } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/StudentEnvelope' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+
+  /students/bulk:
+    post:
+      tags: [Students]
+      summary: Bulk import students
+      operationId: bulkImportStudents
+      x-required-permission: student:create:*
+      parameters: [ { $ref: '#/components/parameters/IdempotencyKey' } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BulkStudentRequest' }
+      responses:
+        '202':
+          description: Accepted; bulk job created.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BulkResultEnvelope' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+
+  /students/{id}:
+    parameters: [ { $ref: '#/components/parameters/ResourceId' } ]
+    get:
+      tags: [Students]
+      summary: Get a student
+      operationId: getStudent
+      x-required-permission: student:read:*
+      parameters: [ { $ref: '#/components/parameters/Expand' } ]
+      responses:
+        '200':
+          description: Student.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/StudentEnvelope' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [Students]
+      summary: Update a student
+      operationId: updateStudent
+      x-required-permission: student:update:*
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateStudentRequest' }
+      responses:
+        '200':
+          description: Updated.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/StudentEnvelope' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+    delete:
+      tags: [Students]
+      summary: Soft-delete a student
+      operationId: deleteStudent
+      x-required-permission: student:delete:*
+      responses:
+        '204': { description: Soft-deleted. }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /students/{id}/schedule:
+    parameters: [ { $ref: '#/components/parameters/ResourceId' } ]
+    get:
+      tags: [Students]
+      summary: Get a student's timetable
+      operationId: getStudentSchedule
+      x-required-permission: routine:read:own
+      parameters:
+        - name: session_id
+          in: query
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Schedule.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ScheduleEnvelope' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /students/{id}/courses:
+    parameters: [ { $ref: '#/components/parameters/ResourceId' } ]
+    get:
+      tags: [Students]
+      summary: Get a student's enrolled courses
+      operationId: getStudentCourses
+      x-required-permission: student:read:*
+      responses:
+        '200':
+          description: Courses.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CourseListEnvelope' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /students/{id}/enroll:
+    parameters: [ { $ref: '#/components/parameters/ResourceId' } ]
+    post:
+      tags: [Students]
+      summary: Enroll a student in courses
+      operationId: enrollStudent
+      x-required-permission: student:update:*
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/EnrollStudentRequest' }
+      responses:
+        '200':
+          description: Enrolled.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CourseListEnvelope' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+
+  /students/{id}/enroll/{courseId}:
+    parameters:
+      - { $ref: '#/components/parameters/ResourceId' }
+      - name: courseId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    delete:
+      tags: [Students]
+      summary: Un-enroll a student from a course
+      operationId: unenrollStudent
+      x-required-permission: student:update:*
+      responses:
+        '204': { description: Un-enrolled. }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  # ============================================================ TEACHERS
+  /teachers:
+    get:
+      tags: [Teachers]
+      summary: List teachers
+      operationId: listTeachers
+      x-required-permission: teacher:read:*
+      parameters:
+        - { $ref: '#/components/parameters/Page' }
+        - { $ref: '#/components/parameters/PageSize' }
+        - { $ref: '#/components/parameters/Sort' }
+        - { $ref: '#/components/parameters/Expand' }
+        - { $ref: '#/components/parameters/Search' }
+        - name: department_id
+          in: query
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Teachers.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TeacherListEnvelope' }
+    post:
+      tags: [Teachers]
+      summary: Create a teacher record
+      operationId: createTeacher
+      x-required-permission: teacher:create:*
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateTeacherRequest' }
+      responses:
+        '201':
+          description: Created.
+          headers: { Location: { $ref: '#/components/headers/Location' } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TeacherEnvelope' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+
+  /teachers/{id}:
+    parameters: [ { $ref: '#/components/parameters/ResourceId' } ]
+    get:
+      tags: [Teachers]
+      summary: Get a teacher
+      operationId: getTeacher
+      x-required-permission: teacher:read:*
+      parameters: [ { $ref: '#/components/parameters/Expand' } ]
+      responses:
+        '200':
+          description: Teacher.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TeacherEnvelope' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [Teachers]
+      summary: Update a teacher
+      operationId: updateTeacher
+      x-required-permission: teacher:update:*
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateTeacherRequest' }
+      responses:
+        '200':
+          description: Updated.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TeacherEnvelope' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+    delete:
+      tags: [Teachers]
+      summary: Soft-delete a teacher
+      operationId: deleteTeacher
+      x-required-permission: teacher:delete:*
+      responses:
+        '204': { description: Soft-deleted. }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /teachers/{id}/schedule:
+    parameters: [ { $ref: '#/components/parameters/ResourceId' } ]
+    get:
+      tags: [Teachers]
+      summary: Get a teacher's timetable
+      operationId: getTeacherSchedule
+      x-required-permission: routine:read:own
+      parameters:
+        - name: session_id
+          in: query
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Schedule.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ScheduleEnvelope' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /teachers/{id}/workload:
+    parameters: [ { $ref: '#/components/parameters/ResourceId' } ]
+    get:
+      tags: [Teachers]
+      summary: Get a teacher's workload summary
+      operationId: getTeacherWorkload
+      x-required-permission: teacher:read:*
+      responses:
+        '200':
+          description: Workload.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WorkloadEnvelope' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /teachers/{id}/availability:
+    parameters: [ { $ref: '#/components/parameters/ResourceId' } ]
+    put:
+      tags: [Teachers]
+      summary: Set a teacher's availability
+      operationId: setTeacherAvailability
+      x-required-permission: teacher:update:own
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SetAvailabilityRequest' }
+      responses:
+        '200':
+          description: Availability set.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AvailabilityEnvelope' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+
+  /teachers/{id}/specializations:
+    parameters: [ { $ref: '#/components/parameters/ResourceId' } ]
+    get:
+      tags: [Teachers]
+      summary: Get a teacher's course specializations
+      operationId: getTeacherSpecializations
+      x-required-permission: teacher:read:*
+      responses:
+        '200':
+          description: Specializations.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SpecializationListEnvelope' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    post:
+      tags: [Teachers]
+      summary: Add a course specialization
+      operationId: addTeacherSpecialization
+      x-required-permission: teacher:update:*
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AddSpecializationRequest' }
+      responses:
+        '201': { description: Added. }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  # ============================================================ ROOMS
+  /rooms:
+    get:
+      tags: [Rooms]
+      summary: List rooms
+      operationId: listRooms
+      x-required-permission: room:read:*
+      parameters:
+        - { $ref: '#/components/parameters/Page' }
+        - { $ref: '#/components/parameters/PageSize' }
+        - { $ref: '#/components/parameters/Sort' }
+        - { $ref: '#/components/parameters/Search' }
+        - name: room_type
+          in: query
+          schema: { $ref: '#/components/schemas/RoomType' }
+        - name: building
+          in: query
+          schema: { type: string }
+        - name: capacity_gte
+          in: query
+          schema: { type: integer }
+        - name: is_active
+          in: query
+          schema: { type: boolean }
+      responses:
+        '200':
+          description: Rooms.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RoomListEnvelope' }
+    post:
+      tags: [Rooms]
+      summary: Create a room
+      operationId: createRoom
+      x-required-permission: room:create:*
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateRoomRequest' }
+      responses:
+        '201':
+          description: Created.
+          headers: { Location: { $ref: '#/components/headers/Location' } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RoomEnvelope' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+
+  /rooms/{id}:
+    parameters: [ { $ref: '#/components/parameters/ResourceId' } ]
+    get:
+      tags: [Rooms]
+      summary: Get a room
+      operationId: getRoom
+      x-required-permission: room:read:*
+      responses:
+        '200':
+          description: Room.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RoomEnvelope' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [Rooms]
+      summary: Update a room
+      operationId: updateRoom
+      x-required-permission: room:update:*
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateRoomRequest' }
+      responses:
+        '200':
+          description: Updated.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RoomEnvelope' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+    delete:
+      tags: [Rooms]
+      summary: Deactivate a room
+      operationId: deactivateRoom
+      x-required-permission: room:delete:*
+      responses:
+        '204': { description: Deactivated. }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /rooms/{id}/availability:
+    parameters: [ { $ref: '#/components/parameters/ResourceId' } ]
+    get:
+      tags: [Rooms]
+      summary: Get room availability
+      operationId: getRoomAvailability
+      x-required-permission: room:read:*
+      parameters:
+        - name: session_id
+          in: query
+          schema: { type: string, format: uuid }
+        - name: day_of_week
+          in: query
+          schema: { $ref: '#/components/schemas/DayOfWeek' }
+      responses:
+        '200':
+          description: Availability.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AvailabilityEnvelope' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /rooms/{id}/utilization:
+    parameters: [ { $ref: '#/components/parameters/ResourceId' } ]
+    get:
+      tags: [Rooms]
+      summary: Get room utilization statistics
+      operationId: getRoomUtilization
+      x-required-permission: report:read:*
+      responses:
+        '200':
+          description: Utilization.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UtilizationEnvelope' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  # ============================================================ LABS (room_type=lab)
+  /labs:
+    get:
+      tags: [Labs]
+      summary: List laboratory rooms
+      operationId: listLabs
+      description: Specialization of Rooms filtered to room_type=lab.
+      x-required-permission: room:read:*
+      parameters:
+        - { $ref: '#/components/parameters/Page' }
+        - { $ref: '#/components/parameters/PageSize' }
+        - { $ref: '#/components/parameters/Sort' }
+        - name: has_computers
+          in: query
+          schema: { type: boolean }
+        - name: capacity_gte
+          in: query
+          schema: { type: integer }
+      responses:
+        '200':
+          description: Labs.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RoomListEnvelope' }
+    post:
+      tags: [Labs]
+      summary: Create a laboratory room
+      operationId: createLab
+      description: Creates a room with room_type forced/validated to lab.
+      x-required-permission: room:create:*
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateLabRequest' }
+      responses:
+        '201':
+          description: Created.
+          headers: { Location: { $ref: '#/components/headers/Location' } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RoomEnvelope' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+
+  /labs/{id}:
+    parameters: [ { $ref: '#/components/parameters/ResourceId' } ]
+    get:
+      tags: [Labs]
+      summary: Get a lab
+      operationId: getLab
+      x-required-permission: room:read:*
+      responses:
+        '200':
+          description: Lab.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RoomEnvelope' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [Labs]
+      summary: Update a lab
+      operationId: updateLab
+      x-required-permission: room:update:*
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateRoomRequest' }
+      responses:
+        '200':
+          description: Updated.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RoomEnvelope' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+
+  # ============================================================ PERIODS (projection)
+  /periods:
+    get:
+      tags: [Periods]
+      summary: List period definitions
+      operationId: listPeriods
+      description: Projection over time slots — the period_number/name dimension (non-break, ordered).
+      x-required-permission: room:read:*
+      parameters:
+        - name: session_id
+          in: query
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Periods.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PeriodListEnvelope' }
+    post:
+      tags: [Periods]
+      summary: Define a period
+      operationId: createPeriod
+      x-required-permission: room:create:*
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreatePeriodRequest' }
+      responses:
+        '201':
+          description: Created.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PeriodEnvelope' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /periods/{id}:
+    parameters: [ { $ref: '#/components/parameters/ResourceId' } ]
+    get:
+      tags: [Periods]
+      summary: Get a period
+      operationId: getPeriod
+      x-required-permission: room:read:*
+      responses:
+        '200':
+          description: Period.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PeriodEnvelope' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      tags: [Periods]
+      summary: Delete a period definition
+      operationId: deletePeriod
+      x-required-permission: room:delete:*
+      responses:
+        '204': { description: Deleted. }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  # ============================================================ TIME SLOTS
+  /time-slots:
+    get:
+      tags: [TimeSlots]
+      summary: List time slots
+      operationId: listTimeSlots
+      x-required-permission: room:read:*
+      parameters:
+        - { $ref: '#/components/parameters/Page' }
+        - { $ref: '#/components/parameters/PageSize' }
+        - { $ref: '#/components/parameters/Sort' }
+        - name: session_id
+          in: query
+          schema: { type: string, format: uuid }
+        - name: is_break
+          in: query
+          schema: { type: boolean }
+        - name: is_lab_slot
+          in: query
+          schema: { type: boolean }
+      responses:
+        '200':
+          description: Time slots.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TimeSlotListEnvelope' }
+    post:
+      tags: [TimeSlots]
+      summary: Create a time slot
+      operationId: createTimeSlot
+      x-required-permission: room:create:*
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateTimeSlotRequest' }
+      responses:
+        '201':
+          description: Created.
+          headers: { Location: { $ref: '#/components/headers/Location' } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TimeSlotEnvelope' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+
+  /time-slots/{id}:
+    parameters: [ { $ref: '#/components/parameters/ResourceId' } ]
+    get:
+      tags: [TimeSlots]
+      summary: Get a time slot
+      operationId: getTimeSlot
+      x-required-permission: room:read:*
+      responses:
+        '200':
+          description: Time slot.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TimeSlotEnvelope' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [TimeSlots]
+      summary: Update a time slot
+      operationId: updateTimeSlot
+      x-required-permission: room:update:*
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateTimeSlotRequest' }
+      responses:
+        '200':
+          description: Updated.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TimeSlotEnvelope' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+    delete:
+      tags: [TimeSlots]
+      summary: Delete a time slot
+      operationId: deleteTimeSlot
+      x-required-permission: room:delete:*
+      responses:
+        '204': { description: Deleted. }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  # ============================================================ ROUTINES
+  /routines:
+    get:
+      tags: [Routines]
+      summary: List routines
+      operationId: listRoutines
+      x-required-permission: routine:read:*
+      parameters:
+        - { $ref: '#/components/parameters/Page' }
+        - { $ref: '#/components/parameters/PageSize' }
+        - { $ref: '#/components/parameters/Sort' }
+        - { $ref: '#/components/parameters/Expand' }
+        - name: session_id
+          in: query
+          schema: { type: string, format: uuid }
+        - name: batch_id
+          in: query
+          schema: { type: string, format: uuid }
+        - name: semester_id
+          in: query
+          schema: { type: string, format: uuid }
+        - name: status
+          in: query
+          schema: { $ref: '#/components/schemas/RoutineStatus' }
+      responses:
+        '200':
+          description: Routines.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RoutineListEnvelope' }
+    post:
+      tags: [Routines]
+      summary: Create an empty routine
+      operationId: createRoutine
+      x-required-permission: routine:create:*
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateRoutineRequest' }
+      responses:
+        '201':
+          description: Created.
+          headers: { Location: { $ref: '#/components/headers/Location' } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RoutineEnvelope' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+
+  /routines/{id}:
+    parameters: [ { $ref: '#/components/parameters/ResourceId' } ]
+    get:
+      tags: [Routines]
+      summary: Get a routine with details
+      operationId: getRoutine
+      x-required-permission: routine:read:*
+      parameters: [ { $ref: '#/components/parameters/Expand' } ]
+      responses:
+        '200':
+          description: Routine.
+          headers: { ETag: { $ref: '#/components/headers/ETag' } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RoutineEnvelope' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [Routines]
+      summary: Update routine metadata
+      operationId: updateRoutine
+      x-required-permission: routine:update:*
+      parameters: [ { $ref: '#/components/parameters/IfMatch' } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateRoutineRequest' }
+      responses:
+        '200':
+          description: Updated.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RoutineEnvelope' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '412': { $ref: '#/components/responses/PreconditionFailed' }
+    delete:
+      tags: [Routines]
+      summary: Delete a routine
+      operationId: deleteRoutine
+      x-required-permission: routine:delete:*
+      responses:
+        '204': { description: Deleted. }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /routines/{id}/publish:
+    parameters: [ { $ref: '#/components/parameters/ResourceId' } ]
+    post:
+      tags: [Routines]
+      summary: Publish a routine
+      operationId: publishRoutine
+      x-required-permission: routine:publish:*
+      responses:
+        '200':
+          description: Published (idempotent).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RoutineEnvelope' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+
+  /routines/{id}/archive:
+    parameters: [ { $ref: '#/components/parameters/ResourceId' } ]
+    post:
+      tags: [Routines]
+      summary: Archive a routine
+      operationId: archiveRoutine
+      x-required-permission: routine:update:*
+      responses:
+        '200':
+          description: Archived (idempotent).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RoutineEnvelope' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /routines/{id}/clone:
+    parameters: [ { $ref: '#/components/parameters/ResourceId' } ]
+    post:
+      tags: [Routines]
+      summary: Clone a routine into a new session/semester
+      operationId: cloneRoutine
+      x-required-permission: routine:clone:*
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CloneRoutineRequest' }
+      responses:
+        '201':
+          description: Cloned.
+          headers: { Location: { $ref: '#/components/headers/Location' } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RoutineEnvelope' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+
+  /routines/{id}/conflicts:
+    parameters: [ { $ref: '#/components/parameters/ResourceId' } ]
+    get:
+      tags: [Routines]
+      summary: Check conflicts in a routine
+      operationId: getRoutineConflicts
+      x-required-permission: routine:read:*
+      responses:
+        '200':
+          description: Conflict report.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ConflictReportEnvelope' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  # ============================================================ ROUTINE DETAILS
+  /routines/{routineId}/details:
+    parameters: [ { $ref: '#/components/parameters/RoutineId' } ]
+    get:
+      tags: [RoutineDetails]
+      summary: List routine detail entries
+      operationId: listRoutineDetails
+      x-required-permission: routine:read:*
+      parameters:
+        - { $ref: '#/components/parameters/Expand' }
+        - name: day_of_week
+          in: query
+          schema: { $ref: '#/components/schemas/DayOfWeek' }
+        - name: teacher_id
+          in: query
+          schema: { type: string, format: uuid }
+        - name: room_id
+          in: query
+          schema: { type: string, format: uuid }
+        - name: section_id
+          in: query
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Detail entries.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RoutineDetailListEnvelope' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    post:
+      tags: [RoutineDetails]
+      summary: Add a schedule entry
+      operationId: addRoutineDetail
+      x-required-permission: routine:update:*
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateRoutineDetailRequest' }
+      responses:
+        '201':
+          description: Entry added.
+          headers: { Location: { $ref: '#/components/headers/Location' } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RoutineDetailEnvelope' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/ScheduleConflict' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+
+  /routines/{routineId}/details/bulk:
+    parameters: [ { $ref: '#/components/parameters/RoutineId' } ]
+    post:
+      tags: [RoutineDetails]
+      summary: Bulk add schedule entries
+      operationId: bulkAddRoutineDetails
+      x-required-permission: routine:update:*
+      parameters:
+        - { $ref: '#/components/parameters/IdempotencyKey' }
+        - name: atomic
+          in: query
+          description: If true, reject the whole batch on any conflict.
+          schema: { type: boolean, default: false }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BulkRoutineDetailRequest' }
+      responses:
+        '200':
+          description: Per-item result report.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BulkResultEnvelope' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/ScheduleConflict' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+
+  /routines/{routineId}/details/{id}:
+    parameters:
+      - { $ref: '#/components/parameters/RoutineId' }
+      - { $ref: '#/components/parameters/ResourceId' }
+    put:
+      tags: [RoutineDetails]
+      summary: Update a schedule entry
+      operationId: updateRoutineDetail
+      x-required-permission: routine:update:*
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateRoutineDetailRequest' }
+      responses:
+        '200':
+          description: Updated.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RoutineDetailEnvelope' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/ScheduleConflict' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+    delete:
+      tags: [RoutineDetails]
+      summary: Remove a schedule entry
+      operationId: deleteRoutineDetail
+      x-required-permission: routine:update:*
+      responses:
+        '204': { description: Removed. }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  # ============================================================ CLASSES (projection)
+  /classes:
+    get:
+      tags: [Classes]
+      summary: List scheduled class meetings
+      operationId: listClasses
+      description: >
+        Read-only projection over published routine details — individual class meetings
+        (course × teacher × room × time slot × day). Filterable by participant/resource.
+      x-required-permission: routine:read:own
+      parameters:
+        - { $ref: '#/components/parameters/Page' }
+        - { $ref: '#/components/parameters/PageSize' }
+        - { $ref: '#/components/parameters/Sort' }
+        - { $ref: '#/components/parameters/Expand' }
+        - name: session_id
+          in: query
+          schema: { type: string, format: uuid }
+        - name: batch_id
+          in: query
+          schema: { type: string, format: uuid }
+        - name: section_id
+          in: query
+          schema: { type: string, format: uuid }
+        - name: teacher_id
+          in: query
+          schema: { type: string, format: uuid }
+        - name: room_id
+          in: query
+          schema: { type: string, format: uuid }
+        - name: course_id
+          in: query
+          schema: { type: string, format: uuid }
+        - name: day_of_week
+          in: query
+          schema: { $ref: '#/components/schemas/DayOfWeek' }
+      responses:
+        '200':
+          description: Classes.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ClassListEnvelope' }
+
+  /classes/{id}:
+    parameters: [ { $ref: '#/components/parameters/ResourceId' } ]
+    get:
+      tags: [Classes]
+      summary: Get a single scheduled class meeting
+      operationId: getClass
+      x-required-permission: routine:read:own
+      parameters: [ { $ref: '#/components/parameters/Expand' } ]
+      responses:
+        '200':
+          description: Class.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ClassEnvelope' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  # ============================================================ UTILITY
+  /health:
+    get:
+      tags: [Authentication]
+      summary: Liveness/readiness probe
+      operationId: health
+      security: []
+      responses:
+        '200': { description: OK. }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+
+# ================================================================ COMPONENTS
+components:
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: RS256 JWT access token (15-min lifetime). Verified via JWKS.
+    apiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: Machine-to-machine public API key.
+
+  headers:
+    Location:
+      description: URI of the created resource.
+      schema: { type: string, format: uri }
+    ETag:
+      description: Concurrency token for optimistic locking.
+      schema: { type: string }
+    RetryAfter:
+      description: Seconds to wait before retrying.
+      schema: { type: integer }
+
+  parameters:
+    ResourceId:
+      name: id
+      in: path
+      required: true
+      description: Resource UUID.
+      schema: { type: string, format: uuid }
+    RoutineId:
+      name: routineId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    ClaimId:
+      name: claimId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    OAuthProvider:
+      name: provider
+      in: path
+      required: true
+      schema: { type: string, enum: [google, microsoft, facebook] }
+    Page:
+      name: page
+      in: query
+      description: 1-based page number.
+      schema: { type: integer, minimum: 1, default: 1 }
+    PageSize:
+      name: page_size
+      in: query
+      description: Items per page (max 100).
+      schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+    Sort:
+      name: sort
+      in: query
+      description: 'CSV of sort fields; prefix "-" for descending. e.g. -created_at,code'
+      schema: { type: string }
+    Expand:
+      name: expand
+      in: query
+      description: CSV of related resources to embed (max depth 2).
+      schema: { type: string }
+    Search:
+      name: q
+      in: query
+      description: Full-text search across searchable fields.
+      schema: { type: string }
+    IfMatch:
+      name: If-Match
+      in: header
+      description: ETag for optimistic concurrency control.
+      schema: { type: string }
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      description: Client key to de-duplicate retried create/bulk requests (24h window).
+      schema: { type: string, format: uuid }
+
+  responses:
+    ValidationError:
+      description: Request validation failed.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+          example:
+            status: error
+            error:
+              code: VALIDATION_ERROR
+              message: Request validation failed.
+              details:
+                fields:
+                  - { field: email, code: PATTERN_MISMATCH, message: Invalid email. }
+              request_id: 0f9c2a14-3b6e-4c2a-9f3a-1a2b3c4d5e6f
+              timestamp: "2026-06-18T10:00:00Z"
+    Unauthorized:
+      description: Missing or invalid credentials.
+      headers:
+        WWW-Authenticate:
+          schema: { type: string }
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    Forbidden:
+      description: Authenticated but lacking permission.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    NotFound:
+      description: Resource not found.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    Conflict:
+      description: Resource conflict (duplicate, referenced, or invalid state).
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    ScheduleConflict:
+      description: Timetable clash (teacher/room/section double-booking).
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+          example:
+            status: error
+            error:
+              code: SCHEDULE_CONFLICT
+              message: Teacher is already booked for this time slot.
+              details:
+                conflict_type: teacher
+                conflicting_detail_id: 8b1c...-...
+                day_of_week: 0
+                period_number: 3
+              request_id: 0f9c2a14-...
+              timestamp: "2026-06-18T10:00:00Z"
+    Unprocessable:
+      description: Semantic/business-rule validation failure.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    PreconditionFailed:
+      description: If-Match ETag did not match.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    RateLimited:
+      description: Too many requests.
+      headers:
+        Retry-After: { $ref: '#/components/headers/RetryAfter' }
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    ServiceUnavailable:
+      description: Temporary outage.
+      headers:
+        Retry-After: { $ref: '#/components/headers/RetryAfter' }
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+
+  schemas:
+
+    # ---------- Envelope primitives ----------
+    Meta:
+      type: object
+      required: [request_id, timestamp, version]
+      properties:
+        request_id: { type: string, format: uuid }
+        timestamp: { type: string, format: date-time }
+        version: { type: string, example: "1.0" }
+        pagination: { $ref: '#/components/schemas/Pagination' }
+    Pagination:
+      type: object
+      properties:
+        page: { type: integer }
+        page_size: { type: integer }
+        total_items: { type: [integer, "null"] }
+        total_pages: { type: [integer, "null"] }
+        has_next: { type: boolean }
+        has_previous: { type: boolean }
+        next_cursor: { type: [string, "null"] }
+    ErrorEnvelope:
+      type: object
+      required: [status, error]
+      properties:
+        status: { type: string, const: error }
+        error:
+          type: object
+          required: [code, message, request_id, timestamp]
+          properties:
+            code: { type: string }
+            message: { type: string }
+            details: { type: object, additionalProperties: true }
+            request_id: { type: string, format: uuid }
+            timestamp: { type: string, format: date-time }
+            documentation_url: { type: string, format: uri }
+    FieldError:
+      type: object
+      properties:
+        field: { type: string }
+        code: { type: string }
+        message: { type: string }
+        rejected_value: {}
+
+    # ---------- Enums ----------
+    DayOfWeek:
+      type: integer
+      minimum: 0
+      maximum: 6
+      description: 0=Mon, 1=Tue, 2=Wed, 3=Thu, 4=Fri, 5=Sat, 6=Sun.
+    RoomType:
+      type: string
+      enum: [lecture, lab, seminar, office]
+    StudentStatus:
+      type: string
+      enum: [active, inactive, graduated, suspended, withdrawn]
+    RoutineStatus:
+      type: string
+      enum: [draft, published, archived]
+    ConstraintType:
+      type: string
+      enum: [hard, soft]
+
+    # ---------- Auth ----------
+    RegisterRequest:
+      type: object
+      required: [email, password, display_name]
+      additionalProperties: false
+      properties:
+        email: { type: string, format: email, maxLength: 255 }
+        password: { type: string, format: password, minLength: 12, maxLength: 128 }
+        display_name: { type: string, minLength: 2, maxLength: 200 }
+        phone: { type: [string, "null"], maxLength: 30 }
+    LoginRequest:
+      type: object
+      required: [email, password]
+      additionalProperties: false
+      properties:
+        email: { type: string, format: email }
+        password: { type: string, format: password }
+        device_info: { type: [string, "null"], maxLength: 500 }
+    RefreshTokenRequest:
+      type: object
+      required: [refresh_token]
+      additionalProperties: false
+      properties:
+        refresh_token: { type: string }
+    ForgotPasswordRequest:
+      type: object
+      required: [email]
+      additionalProperties: false
+      properties:
+        email: { type: string, format: email }
+    ResetPasswordRequest:
+      type: object
+      required: [token, new_password]
+      additionalProperties: false
+      properties:
+        token: { type: string }
+        new_password: { type: string, format: password, minLength: 12, maxLength: 128 }
+    AuthTokens:
+      type: object
+      properties:
+        access_token: { type: string }
+        refresh_token: { type: string }
+        token_type: { type: string, const: Bearer }
+        expires_in: { type: integer, example: 900 }
+    AuthTokenEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelope'
+        - type: object
+          properties:
+            data: { $ref: '#/components/schemas/AuthTokens' }
+
+    SuccessEnvelope:
+      type: object
+      required: [status, data, meta]
+      properties:
+        status: { type: string, const: success }
+        data: {}
+        meta: { $ref: '#/components/schemas/Meta' }
+
+    # ---------- Users ----------
+    UserResponse:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        email: { type: string, format: email }
+        email_verified: { type: boolean }
+        display_name: { type: string }
+        phone: { type: [string, "null"] }
+        is_active: { type: boolean }
+        roles:
+          type: array
+          items: { type: string }
+        last_login_at: { type: [string, "null"], format: date-time }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    CreateUserRequest:
+      type: object
+      required: [email, password, display_name]
+      additionalProperties: false
+      properties:
+        email: { type: string, format: email, maxLength: 255 }
+        password: { type: string, format: password, minLength: 12, maxLength: 128 }
+        display_name: { type: string, minLength: 2, maxLength: 200 }
+        phone: { type: [string, "null"], maxLength: 30 }
+        is_active: { type: boolean, default: true }
+        role_ids:
+          type: array
+          items: { type: string, format: uuid }
+    ReplaceUserRequest:
+      type: object
+      required: [display_name, is_active]
+      additionalProperties: false
+      properties:
+        display_name: { type: string, minLength: 2, maxLength: 200 }
+        phone: { type: [string, "null"], maxLength: 30 }
+        is_active: { type: boolean }
+    UpdateUserRequest:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        display_name: { type: string, minLength: 2, maxLength: 200 }
+        phone: { type: [string, "null"], maxLength: 30 }
+        is_active: { type: boolean }
+    UpdateProfileRequest:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        display_name: { type: string, minLength: 2, maxLength: 200 }
+        phone: { type: [string, "null"], maxLength: 30 }
+    ChangePasswordRequest:
+      type: object
+      required: [current_password, new_password]
+      additionalProperties: false
+      properties:
+        current_password: { type: string, format: password }
+        new_password: { type: string, format: password, minLength: 12, maxLength: 128 }
+    SetUserRolesRequest:
+      type: object
+      required: [role_ids]
+      additionalProperties: false
+      properties:
+        role_ids:
+          type: array
+          items: { type: string, format: uuid }
+          uniqueItems: true
+    UserEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelope'
+        - type: object
+          properties: { data: { $ref: '#/components/schemas/UserResponse' } }
+    UserListEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelope'
+        - type: object
+          properties:
+            data:
+              type: array
+              items: { $ref: '#/components/schemas/UserResponse' }
+
+    # ---------- Roles & Permissions ----------
+    RoleResponse:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        description: { type: [string, "null"] }
+        is_system_role: { type: boolean }
+        permission_count: { type: integer }
+        created_at: { type: string, format: date-time }
+    CreateRoleRequest:
+      type: object
+      required: [name]
+      additionalProperties: false
+      properties:
+        name: { type: string, minLength: 2, maxLength: 100, pattern: '^[a-z][a-z0-9_]*$' }
+        description: { type: [string, "null"], maxLength: 500 }
+        permission_ids:
+          type: array
+          items: { type: string, format: uuid }
+    UpdateRoleRequest:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        name: { type: string, minLength: 2, maxLength: 100, pattern: '^[a-z][a-z0-9_]*$' }
+        description: { type: [string, "null"], maxLength: 500 }
+    SetRolePermissionsRequest:
+      type: object
+      required: [permission_ids]
+      additionalProperties: false
+      properties:
+        permission_ids:
+          type: array
+          items: { type: string, format: uuid }
+          uniqueItems: true
+    PermissionResponse:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        code: { type: string, example: 'routine:publish:*' }
+        name: { type: string }
+        module: { type: string }
+        description: { type: [string, "null"] }
+    RoleEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelope'
+        - type: object
+          properties: { data: { $ref: '#/components/schemas/RoleResponse' } }
+    RoleListEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelope'
+        - type: object
+          properties:
+            data: { type: array, items: { $ref: '#/components/schemas/RoleResponse' } }
+    PermissionListEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelope'
+        - type: object
+          properties:
+            data: { type: array, items: { $ref: '#/components/schemas/PermissionResponse' } }
+
+    # ---------- Claims ----------
+    ClaimResponse:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        user_id: { type: string, format: uuid }
+        claim_type: { type: string }
+        claim_value: { type: string }
+    CreateClaimRequest:
+      type: object
+      required: [claim_type, claim_value]
+      additionalProperties: false
+      properties:
+        claim_type: { type: string, minLength: 1, maxLength: 200 }
+        claim_value: { type: string, minLength: 1, maxLength: 500 }
+    ClaimEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelope'
+        - type: object
+          properties: { data: { $ref: '#/components/schemas/ClaimResponse' } }
+    ClaimListEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelope'
+        - type: object
+          properties:
+            data: { type: array, items: { $ref: '#/components/schemas/ClaimResponse' } }
+
+    # ---------- Sessions ----------
+    SessionResponse:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        start_date: { type: string, format: date }
+        end_date: { type: string, format: date }
+        is_current: { type: boolean }
+        created_at: { type: string, format: date-time }
+    CreateSessionRequest:
+      type: object
+      required: [name, start_date, end_date]
+      additionalProperties: false
+      properties:
+        name: { type: string, minLength: 4, maxLength: 100, example: "2025-2026" }
+        start_date: { type: string, format: date }
+        end_date: { type: string, format: date }
+        is_current: { type: boolean, default: false }
+    UpdateSessionRequest:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        name: { type: string, minLength: 4, maxLength: 100 }
+        start_date: { type: string, format: date }
+        end_date: { type: string, format: date }
+    SessionEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelope'
+        - type: object
+          properties: { data: { $ref: '#/components/schemas/SessionResponse' } }
+    SessionListEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelope'
+        - type: object
+          properties:
+            data: { type: array, items: { $ref: '#/components/schemas/SessionResponse' } }
+
+    # ---------- Batches ----------
+    BatchResponse:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        code: { type: string }
+        session_id: { type: string, format: uuid }
+        department_id: { type: string, format: uuid }
+        created_at: { type: string, format: date-time }
+    CreateBatchRequest:
+      type: object
+      required: [name, code, session_id, department_id]
+      additionalProperties: false
+      properties:
+        name: { type: string, minLength: 2, maxLength: 100 }
+        code: { type: string, minLength: 2, maxLength: 50 }
+        session_id: { type: string, format: uuid }
+        department_id: { type: string, format: uuid }
+    UpdateBatchRequest:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        name: { type: string, minLength: 2, maxLength: 100 }
+        code: { type: string, minLength: 2, maxLength: 50 }
+    BatchEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelope'
+        - type: object
+          properties: { data: { $ref: '#/components/schemas/BatchResponse' } }
+    BatchListEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelope'
+        - type: object
+          properties:
+            data: { type: array, items: { $ref: '#/components/schemas/BatchResponse' } }
+
+    # ---------- Semesters ----------
+    SemesterResponse:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        number: { type: integer }
+        session_id: { type: string, format: uuid }
+        start_date: { type: string, format: date }
+        end_date: { type: string, format: date }
+        created_at: { type: string, format: date-time }
+    CreateSemesterRequest:
+      type: object
+      required: [name, number, session_id, start_date, end_date]
+      additionalProperties: false
+      properties:
+        name: { type: string, minLength: 2, maxLength: 100 }
+        number: { type: integer, minimum: 1, maximum: 12 }
+        session_id: { type: string, format: uuid }
+        start_date: { type: string, format: date }
+        end_date: { type: string, format: date }
+    UpdateSemesterRequest:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        name: { type: string, minLength: 2, maxLength: 100 }
+        number: { type: integer, minimum: 1, maximum: 12 }
+        start_date: { type: string, format: date }
+        end_date: { type: string, format: date }
+    SemesterEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelope'
+        - type: object
+          properties: { data: { $ref: '#/components/schemas/SemesterResponse' } }
+    SemesterListEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelope'
+        - type: object
+          properties:
+            data: { type: array, items: { $ref: '#/components/schemas/SemesterResponse' } }
+
+    # ---------- Sections ----------
+    SectionResponse:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        batch_id: { type: string, format: uuid }
+        max_capacity: { type: integer }
+        student_count: { type: integer }
+        created_at: { type: string, format: date-time }
+    CreateSectionRequest:
+      type: object
+      required: [name, batch_id, max_capacity]
+      additionalProperties: false
+      properties:
+        name: { type: string, minLength: 1, maxLength: 50 }
+        batch_id: { type: string, format: uuid }
+        max_capacity: { type: integer, minimum: 1, maximum: 500 }
+    UpdateSectionRequest:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        name: { type: string, minLength: 1, maxLength: 50 }
+        max_capacity: { type: integer, minimum: 1, maximum: 500 }
+    AssignStudentsRequest:
+      type: object
+      required: [student_ids]
+      additionalProperties: false
+      properties:
+        student_ids:
+          type: array
+          items: { type: string, format: uuid }
+          uniqueItems: true
+    SectionEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelope'
+        - type: object
+          properties: { data: { $ref: '#/components/schemas/SectionResponse' } }
+    SectionListEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelope'
+        - type: object
+          properties:
+            data: { type: array, items: { $ref: '#/components/schemas/SectionResponse' } }
+
+    # ---------- Courses ----------
+    CourseResponse:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        code: { type: string }
+        title: { type: string }
+        credits: { type: number }
+        lecture_hours: { type: integer }
+        lab_hours: { type: integer }
+        department_id: { type: string, format: uuid }
+        is_active: { type: boolean }
+        created_at: { type: string, format: date-time }
+    CreateCourseRequest:
+      type: object
+      required: [code, title, credits, lecture_hours, department_id]
+      additionalProperties: false
+      properties:
+        code: { type: string, pattern: '^[A-Z]{2,4}-\d{3}$', example: 'CSE-101' }
+        title: { type: string, minLength: 3, maxLength: 200 }
+        credits: { type: number, minimum: 0.5, maximum: 6.0, multipleOf: 0.5 }
+        lecture_hours: { type: integer, minimum: 0, maximum: 20 }
+        lab_hours: { type: integer, minimum: 0, maximum: 20, default: 0 }
+        department_id: { type: string, format: uuid }
+        prerequisite_ids:
+          type: array
+          items: { type: string, format: uuid }
+    UpdateCourseRequest:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        title: { type: string, minLength: 3, maxLength: 200 }
+        credits: { type: number, minimum: 0.5, maximum: 6.0, multipleOf: 0.5 }
+        lecture_hours: { type: integer, minimum: 0, maximum: 20 }
+        lab_hours: { type: integer, minimum: 0, maximum: 20 }
+        is_active: { type: boolean }
+    AddPrerequisiteRequest:
+      type: object
+      required: [prerequisite_id]
+      additionalProperties: false
+      properties:
+        prerequisite_id: { type: string, format: uuid }
+    CourseEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelope'
+        - type: object
+          properties: { data: { $ref: '#/components/schemas/CourseResponse' } }
+    CourseListEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelope'
+        - type: object
+          properties:
+            data: { type: array, items: { $ref: '#/components/schemas/CourseResponse' } }
+
+    # ---------- Students ----------
+    StudentResponse:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        user_id: { type: string, format: uuid }
+        roll_number: { type: string }
+        registration_number: { type: [string, "null"] }
+        batch_id: { type: string, format: uuid }
+        section_id: { type: [string, "null"], format: uuid }
+        enrollment_date: { type: string, format: date }
+        status: { $ref: '#/components/schemas/StudentStatus' }
+    CreateStudentRequest:
+      type: object
+      required: [user_id, roll_number, batch_id]
+      additionalProperties: false
+      properties:
+        user_id: { type: string, format: uuid }
+        roll_number: { type: string, minLength: 1, maxLength: 50 }
+        registration_number: { type: [string, "null"], maxLength: 50 }
+        batch_id: { type: string, format: uuid }
+        section_id: { type: [string, "null"], format: uuid }
+        enrollment_date: { type: string, format: date }
+    UpdateStudentRequest:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        roll_number: { type: string, minLength: 1, maxLength: 50 }
+        registration_number: { type: [string, "null"], maxLength: 50 }
+        section_id: { type: [string, "null"], format: uuid }
+        status: { $ref: '#/components/schemas/StudentStatus' }
+    BulkStudentRequest:
+      type: object
+      required: [items]
+      additionalProperties: false
+      properties:
+        items:
+          type: array
+          minItems: 1
+          maxItems: 1000
+          items: { $ref: '#/components/schemas/CreateStudentRequest' }
+    EnrollStudentRequest:
+      type: object
+      required: [course_ids]
+      additionalProperties: false
+      properties:
+        course_ids:
+          type: array
+          minItems: 1
+          items: { type: string, format: uuid }
+          uniqueItems: true
+    StudentEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelope'
+        - type: object
+          properties: { data: { $ref: '#/components/schemas/StudentResponse' } }
+    StudentListEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelope'
+        - type: object
+          properties:
+            data: { type: array, items: { $ref: '#/components/schemas/StudentResponse' } }
+
+    # ---------- Teachers ----------
+    TeacherResponse:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        user_id: { type: string, format: uuid }
+        employee_code: { type: string }
+        designation: { type: string }
+        department_id: { type: string, format: uuid }
+        max_hours_per_week: { type: integer }
+        specialization:
+          type: array
+          items: { type: string }
+    CreateTeacherRequest:
+      type: object
+      required: [user_id, employee_code, designation, department_id]
+      additionalProperties: false
+      properties:
+        user_id: { type: string, format: uuid }
+        employee_code: { type: string, minLength: 1, maxLength: 50 }
+        designation: { type: string, minLength: 2, maxLength: 100 }
+        department_id: { type: string, format: uuid }
+        max_hours_per_week: { type: integer, minimum: 1, maximum: 60, default: 30 }
+        specialization:
+          type: array
+          items: { type: string, maxLength: 100 }
+    UpdateTeacherRequest:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        designation: { type: string, minLength: 2, maxLength: 100 }
+        max_hours_per_week: { type: integer, minimum: 1, maximum: 60 }
+        specialization:
+          type: array
+          items: { type: string, maxLength: 100 }
+    SetAvailabilityRequest:
+      type: object
+      required: [slots]
+      additionalProperties: false
+      properties:
+        slots:
+          type: array
+          items:
+            type: object
+            required: [day_of_week, time_slot_id, available]
+            additionalProperties: false
+            properties:
+              day_of_week: { $ref: '#/components/schemas/DayOfWeek' }
+              time_slot_id: { type: string, format: uuid }
+              available: { type: boolean }
+    AddSpecializationRequest:
+      type: object
+      required: [course_id]
+      additionalProperties: false
+      properties:
+        course_id: { type: string, format: uuid }
+        preference_level: { type: integer, minimum: 0, maximum: 10, default: 0 }
+    SpecializationResponse:
+      type: object
+      properties:
+        course_id: { type: string, format: uuid }
+        preference_level: { type: integer }
+    WorkloadResponse:
+      type: object
+      properties:
+        teacher_id: { type: string, format: uuid }
+        max_hours_per_week: { type: integer }
+        assigned_hours_per_week: { type: integer }
+        utilization_percent: { type: number }
+        courses_count: { type: integer }
+    TeacherEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelope'
+        - type: object
+          properties: { data: { $ref: '#/components/schemas/TeacherResponse' } }
+    TeacherListEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelope'
+        - type: object
+          properties:
+            data: { type: array, items: { $ref: '#/components/schemas/TeacherResponse' } }
+    SpecializationListEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelope'
+        - type: object
+          properties:
+            data: { type: array, items: { $ref: '#/components/schemas/SpecializationResponse' } }
+    WorkloadEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelope'
+        - type: object
+          properties: { data: { $ref: '#/components/schemas/WorkloadResponse' } }
+
+    # ---------- Rooms / Labs ----------
+    RoomResponse:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        code: { type: string }
+        building: { type: string }
+        floor: { type: integer }
+        capacity: { type: integer }
+        room_type: { $ref: '#/components/schemas/RoomType' }
+        has_projector: { type: boolean }
+        has_computers: { type: boolean }
+        has_ac: { type: boolean }
+        is_active: { type: boolean }
+        created_at: { type: string, format: date-time }
+    CreateRoomRequest:
+      type: object
+      required: [name, code, building, floor, capacity, room_type]
+      additionalProperties: false
+      properties:
+        name: { type: string, minLength: 1, maxLength: 100 }
+        code: { type: string, minLength: 1, maxLength: 50 }
+        building: { type: string, minLength: 1, maxLength: 100 }
+        floor: { type: integer, minimum: -5, maximum: 200 }
+        capacity: { type: integer, minimum: 1, maximum: 1000 }
+        room_type: { $ref: '#/components/schemas/RoomType' }
+        has_projector: { type: boolean, default: false }
+        has_computers: { type: boolean, default: false }
+        has_ac: { type: boolean, default: true }
+    CreateLabRequest:
+      type: object
+      required: [name, code, building, floor, capacity]
+      additionalProperties: false
+      description: room_type is forced to 'lab'.
+      properties:
+        name: { type: string, minLength: 1, maxLength: 100 }
+        code: { type: string, minLength: 1, maxLength: 50 }
+        building: { type: string, minLength: 1, maxLength: 100 }
+        floor: { type: integer, minimum: -5, maximum: 200 }
+        capacity: { type: integer, minimum: 1, maximum: 1000 }
+        has_projector: { type: boolean, default: false }
+        has_computers: { type: boolean, default: true }
+        has_ac: { type: boolean, default: true }
+    UpdateRoomRequest:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        name: { type: string, minLength: 1, maxLength: 100 }
+        building: { type: string, minLength: 1, maxLength: 100 }
+        floor: { type: integer, minimum: -5, maximum: 200 }
+        capacity: { type: integer, minimum: 1, maximum: 1000 }
+        has_projector: { type: boolean }
+        has_computers: { type: boolean }
+        has_ac: { type: boolean }
+        is_active: { type: boolean }
+    RoomEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelope'
+        - type: object
+          properties: { data: { $ref: '#/components/schemas/RoomResponse' } }
+    RoomListEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelope'
+        - type: object
+          properties:
+            data: { type: array, items: { $ref: '#/components/schemas/RoomResponse' } }
+
+    # ---------- Periods / TimeSlots ----------
+    PeriodResponse:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        period_number: { type: integer }
+        session_id: { type: [string, "null"], format: uuid }
+    CreatePeriodRequest:
+      type: object
+      required: [name, period_number]
+      additionalProperties: false
+      properties:
+        name: { type: string, minLength: 1, maxLength: 100 }
+        period_number: { type: integer, minimum: 1, maximum: 30 }
+        session_id: { type: [string, "null"], format: uuid }
+    TimeSlotResponse:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        period_number: { type: integer }
+        start_time: { type: string, example: "09:00" }
+        end_time: { type: string, example: "09:50" }
+        duration_minutes: { type: integer }
+        is_break: { type: boolean }
+        is_lab_slot: { type: boolean }
+        session_id: { type: [string, "null"], format: uuid }
+    CreateTimeSlotRequest:
+      type: object
+      required: [name, period_number, start_time, end_time, duration_minutes]
+      additionalProperties: false
+      properties:
+        name: { type: string, minLength: 1, maxLength: 100 }
+        period_number: { type: integer, minimum: 1, maximum: 30 }
+        start_time: { type: string, pattern: '^([01]\d|2[0-3]):[0-5]\d$' }
+        end_time: { type: string, pattern: '^([01]\d|2[0-3]):[0-5]\d$' }
+        duration_minutes: { type: integer, minimum: 5, maximum: 480 }
+        is_break: { type: boolean, default: false }
+        is_lab_slot: { type: boolean, default: false }
+        session_id: { type: [string, "null"], format: uuid }
+    UpdateTimeSlotRequest:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        name: { type: string, minLength: 1, maxLength: 100 }
+        start_time: { type: string, pattern: '^([01]\d|2[0-3]):[0-5]\d$' }
+        end_time: { type: string, pattern: '^([01]\d|2[0-3]):[0-5]\d$' }
+        duration_minutes: { type: integer, minimum: 5, maximum: 480 }
+        is_break: { type: boolean }
+        is_lab_slot: { type: boolean }
+    PeriodEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelope'
+        - type: object
+          properties: { data: { $ref: '#/components/schemas/PeriodResponse' } }
+    PeriodListEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelope'
+        - type: object
+          properties:
+            data: { type: array, items: { $ref: '#/components/schemas/PeriodResponse' } }
+    TimeSlotEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelope'
+        - type: object
+          properties: { data: { $ref: '#/components/schemas/TimeSlotResponse' } }
+    TimeSlotListEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelope'
+        - type: object
+          properties:
+            data: { type: array, items: { $ref: '#/components/schemas/TimeSlotResponse' } }
+
+    # ---------- Routines ----------
+    RoutineResponse:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        title: { type: string }
+        description: { type: [string, "null"] }
+        session_id: { type: string, format: uuid }
+        batch_id: { type: string, format: uuid }
+        semester_id: { type: [string, "null"], format: uuid }
+        status: { $ref: '#/components/schemas/RoutineStatus' }
+        valid_from: { type: string, format: date }
+        valid_to: { type: string, format: date }
+        created_by: { type: [string, "null"], format: uuid }
+        details:
+          type: array
+          description: Present only when ?expand=details.
+          items: { $ref: '#/components/schemas/RoutineDetailResponse' }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    CreateRoutineRequest:
+      type: object
+      required: [title, session_id, batch_id, valid_from, valid_to]
+      additionalProperties: false
+      properties:
+        title: { type: string, minLength: 2, maxLength: 200 }
+        description: { type: [string, "null"], maxLength: 2000 }
+        session_id: { type: string, format: uuid }
+        batch_id: { type: string, format: uuid }
+        semester_id: { type: [string, "null"], format: uuid }
+        valid_from: { type: string, format: date }
+        valid_to: { type: string, format: date }
+    UpdateRoutineRequest:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        title: { type: string, minLength: 2, maxLength: 200 }
+        description: { type: [string, "null"], maxLength: 2000 }
+        semester_id: { type: [string, "null"], format: uuid }
+        valid_from: { type: string, format: date }
+        valid_to: { type: string, format: date }
+    CloneRoutineRequest:
+      type: object
+      required: [target_session_id]
+      additionalProperties: false
+      properties:
+        target_session_id: { type: string, format: uuid }
+        target_semester_id: { type: [string, "null"], format: uuid }
+        target_batch_id: { type: [string, "null"], format: uuid }
+        new_title: { type: [string, "null"], maxLength: 200 }
+    RoutineEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelope'
+        - type: object
+          properties: { data: { $ref: '#/components/schemas/RoutineResponse' } }
+    RoutineListEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelope'
+        - type: object
+          properties:
+            data: { type: array, items: { $ref: '#/components/schemas/RoutineResponse' } }
+
+    # ---------- Routine Details ----------
+    RoutineDetailResponse:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        routine_id: { type: string, format: uuid }
+        day_of_week: { $ref: '#/components/schemas/DayOfWeek' }
+        time_slot_id: { type: string, format: uuid }
+        period_number: { type: integer }
+        course_id: { type: string, format: uuid }
+        teacher_id: { type: string, format: uuid }
+        room_id: { type: string, format: uuid }
+        section_id: { type: [string, "null"], format: uuid }
+        is_lab: { type: boolean }
+        group_name: { type: [string, "null"] }
+    CreateRoutineDetailRequest:
+      type: object
+      required: [day_of_week, time_slot_id, period_number, course_id, teacher_id, room_id]
+      additionalProperties: false
+      properties:
+        day_of_week: { $ref: '#/components/schemas/DayOfWeek' }
+        time_slot_id: { type: string, format: uuid }
+        period_number: { type: integer, minimum: 1, maximum: 30 }
+        course_id: { type: string, format: uuid }
+        teacher_id: { type: string, format: uuid }
+        room_id: { type: string, format: uuid }
+        section_id: { type: [string, "null"], format: uuid }
+        is_lab: { type: boolean, default: false }
+        group_name: { type: [string, "null"], maxLength: 50 }
+    UpdateRoutineDetailRequest:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        day_of_week: { $ref: '#/components/schemas/DayOfWeek' }
+        time_slot_id: { type: string, format: uuid }
+        period_number: { type: integer, minimum: 1, maximum: 30 }
+        course_id: { type: string, format: uuid }
+        teacher_id: { type: string, format: uuid }
+        room_id: { type: string, format: uuid }
+        section_id: { type: [string, "null"], format: uuid }
+        is_lab: { type: boolean }
+        group_name: { type: [string, "null"], maxLength: 50 }
+    BulkRoutineDetailRequest:
+      type: object
+      required: [items]
+      additionalProperties: false
+      properties:
+        items:
+          type: array
+          minItems: 1
+          maxItems: 1000
+          items: { $ref: '#/components/schemas/CreateRoutineDetailRequest' }
+    RoutineDetailEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelope'
+        - type: object
+          properties: { data: { $ref: '#/components/schemas/RoutineDetailResponse' } }
+    RoutineDetailListEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelope'
+        - type: object
+          properties:
+            data: { type: array, items: { $ref: '#/components/schemas/RoutineDetailResponse' } }
+
+    # ---------- Classes (projection) ----------
+    ClassResponse:
+      type: object
+      description: A single scheduled class meeting derived from a routine detail.
+      properties:
+        id: { type: string, format: uuid, description: routine_detail id }
+        routine_id: { type: string, format: uuid }
+        day_of_week: { $ref: '#/components/schemas/DayOfWeek' }
+        period_number: { type: integer }
+        start_time: { type: string }
+        end_time: { type: string }
+        course: { $ref: '#/components/schemas/CourseRef' }
+        teacher: { $ref: '#/components/schemas/EntityRef' }
+        room: { $ref: '#/components/schemas/EntityRef' }
+        section: { $ref: '#/components/schemas/EntityRef' }
+        is_lab: { type: boolean }
+    CourseRef:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        code: { type: string }
+        title: { type: string }
+    EntityRef:
+      type: object
+      properties:
+        id: { type: [string, "null"], format: uuid }
+        name: { type: [string, "null"] }
+    ClassEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelope'
+        - type: object
+          properties: { data: { $ref: '#/components/schemas/ClassResponse' } }
+    ClassListEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelope'
+        - type: object
+          properties:
+            data: { type: array, items: { $ref: '#/components/schemas/ClassResponse' } }
+
+    # ---------- Shared projections ----------
+    ScheduleResponse:
+      type: object
+      properties:
+        owner_type: { type: string, enum: [student, teacher] }
+        owner_id: { type: string, format: uuid }
+        session_id: { type: [string, "null"], format: uuid }
+        classes:
+          type: array
+          items: { $ref: '#/components/schemas/ClassResponse' }
+    AvailabilityResponse:
+      type: object
+      properties:
+        resource_type: { type: string, enum: [room, teacher] }
+        resource_id: { type: string, format: uuid }
+        slots:
+          type: array
+          items:
+            type: object
+            properties:
+              day_of_week: { $ref: '#/components/schemas/DayOfWeek' }
+              time_slot_id: { type: string, format: uuid }
+              available: { type: boolean }
+    UtilizationResponse:
+      type: object
+      properties:
+        resource_id: { type: string, format: uuid }
+        total_slots: { type: integer }
+        used_slots: { type: integer }
+        utilization_percent: { type: number }
+    ConflictReportResponse:
+      type: object
+      properties:
+        routine_id: { type: string, format: uuid }
+        conflict_count: { type: integer }
+        conflicts:
+          type: array
+          items:
+            type: object
+            properties:
+              conflict_type: { type: string, enum: [teacher, room, section] }
+              day_of_week: { $ref: '#/components/schemas/DayOfWeek' }
+              period_number: { type: integer }
+              detail_ids:
+                type: array
+                items: { type: string, format: uuid }
+    BulkItemResult:
+      type: object
+      properties:
+        index: { type: integer }
+        status: { type: string, enum: [created, updated, skipped, failed] }
+        id: { type: [string, "null"], format: uuid }
+        error: { $ref: '#/components/schemas/FieldError' }
+    BulkResult:
+      type: object
+      properties:
+        total: { type: integer }
+        succeeded: { type: integer }
+        failed: { type: integer }
+        results:
+          type: array
+          items: { $ref: '#/components/schemas/BulkItemResult' }
+    ScheduleEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelope'
+        - type: object
+          properties: { data: { $ref: '#/components/schemas/ScheduleResponse' } }
+    AvailabilityEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelope'
+        - type: object
+          properties: { data: { $ref: '#/components/schemas/AvailabilityResponse' } }
+    UtilizationEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelope'
+        - type: object
+          properties: { data: { $ref: '#/components/schemas/UtilizationResponse' } }
+    ConflictReportEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelope'
+        - type: object
+          properties: { data: { $ref: '#/components/schemas/ConflictReportResponse' } }
+    BulkResultEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelope'
+        - type: object
+          properties: { data: { $ref: '#/components/schemas/BulkResult' } }
