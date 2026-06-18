@@ -15,6 +15,12 @@ class ValidationError(ApplicationError):
     code = "UNPROCESSABLE_ENTITY"
 
 
+class AuthenticationError(ApplicationError):
+    """Raised when authentication fails."""
+
+    code = "UNAUTHORIZED"
+
+
 class PermissionDeniedError(ApplicationError):
     """Raised when the caller lacks the required permission."""
 
@@ -29,6 +35,7 @@ class ConflictError(ApplicationError):
 
 __all__ = [
     "ApplicationError",
+    "AuthenticationError",
     "ConflictError",
     "PermissionDeniedError",
     "ValidationError",
