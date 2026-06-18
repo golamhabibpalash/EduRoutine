@@ -17,11 +17,16 @@ export function LoginPage() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
 
+  const redirectTo =
+    (typeof window !== "undefined" &&
+      new URLSearchParams(window.location.search).get("redirect")) ||
+    "/dashboard"
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     try {
       await login({ email, password })
-      router.replace("/dashboard")
+      router.replace(redirectTo)
     } catch {
       // error handled via loginError
     }

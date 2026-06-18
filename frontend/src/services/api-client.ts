@@ -2,6 +2,16 @@ import axios, { AxiosError, type InternalAxiosRequestConfig } from "axios"
 import { API_BASE_URL, AUTH_TOKEN_KEY, REFRESH_TOKEN_KEY } from "@/lib/constants"
 import type { ApiError } from "@/types/api"
 
+function setCookie(name: string, value: string) {
+  if (typeof document === "undefined") return
+  document.cookie = `${name}=${encodeURIComponent(value)}; path=/; max-age=604800; SameSite=Lax`
+}
+
+function removeCookie(name: string) {
+  if (typeof document === "undefined") return
+  document.cookie = `${name}=; path=/; max-age=0`
+}
+
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
   headers: {
@@ -60,6 +70,8 @@ apiClient.interceptors.response.use(
       if (!refreshToken) {
         localStorage.removeItem(AUTH_TOKEN_KEY)
         localStorage.removeItem(REFRESH_TOKEN_KEY)
+        removeCookie(AUTH_TOKEN_KEY)
+        removeCookie(REFRESH_TOKEN_KEY)
         if (typeof window !== "undefined") {
           window.location.href = "/login"
         }
@@ -74,6 +86,7 @@ apiClient.interceptors.response.use(
         const { access_token, refresh_token: newRefreshToken } = response.data
         localStorage.setItem(AUTH_TOKEN_KEY, access_token)
         localStorage.setItem(REFRESH_TOKEN_KEY, newRefreshToken)
+        setCookie(AUTH_TOKEN_KEY, access_token)
 
         processQueue(null, access_token)
 
@@ -83,6 +96,8 @@ apiClient.interceptors.response.use(
         processQueue(refreshError, null)
         localStorage.removeItem(AUTH_TOKEN_KEY)
         localStorage.removeItem(REFRESH_TOKEN_KEY)
+        removeCookie(AUTH_TOKEN_KEY)
+        removeCookie(REFRESH_TOKEN_KEY)
         if (typeof window !== "undefined") {
           window.location.href = "/login"
         }
