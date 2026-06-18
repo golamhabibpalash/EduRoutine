@@ -17,6 +17,58 @@ export const ENDPOINTS = {
     list: `${API_PREFIX}/users`,
     detail: (id: string) => `${API_PREFIX}/users/${id}`,
   },
+  sessions: {
+    list: `${API_PREFIX}/sessions`,
+    detail: (id: string) => `${API_PREFIX}/sessions/${id}`,
+  },
+  batches: {
+    list: `${API_PREFIX}/batches`,
+    detail: (id: string) => `${API_PREFIX}/batches/${id}`,
+  },
+  semesters: {
+    list: `${API_PREFIX}/semesters`,
+    detail: (id: string) => `${API_PREFIX}/semesters/${id}`,
+  },
+  sections: {
+    list: `${API_PREFIX}/sections`,
+    detail: (id: string) => `${API_PREFIX}/sections/${id}`,
+  },
+  courses: {
+    list: `${API_PREFIX}/courses`,
+    detail: (id: string) => `${API_PREFIX}/courses/${id}`,
+  },
+  teachers: {
+    list: `${API_PREFIX}/teachers`,
+    detail: (id: string) => `${API_PREFIX}/teachers/${id}`,
+  },
+  students: {
+    list: `${API_PREFIX}/students`,
+    detail: (id: string) => `${API_PREFIX}/students/${id}`,
+  },
+  rooms: {
+    list: `${API_PREFIX}/rooms`,
+    detail: (id: string) => `${API_PREFIX}/rooms/${id}`,
+  },
+  labs: {
+    list: `${API_PREFIX}/labs`,
+  },
+  timeSlots: {
+    list: `${API_PREFIX}/time-slots`,
+  },
+  periods: {
+    list: `${API_PREFIX}/periods`,
+  },
+  routines: {
+    list: `${API_PREFIX}/routines`,
+    detail: (id: string) => `${API_PREFIX}/routines/${id}`,
+  },
+  roles: {
+    list: `${API_PREFIX}/roles`,
+    detail: (id: string) => `${API_PREFIX}/roles/${id}`,
+  },
+  permissions: {
+    list: `${API_PREFIX}/permissions`,
+  },
 } as const
 
 export const AUTH_TOKEN_KEY = "access_token"
