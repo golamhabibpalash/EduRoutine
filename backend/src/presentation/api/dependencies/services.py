@@ -18,7 +18,7 @@ from src.application.academic.service import (
 from src.application.people.service import StudentService, TeacherService
 from src.application.resources.service import RoomService
 from src.application.roles.service import RoleService
-from src.application.timetable.service import PeriodService
+from src.application.timetable.service import PeriodService, RoutineService
 from src.application.users.service import UserService
 from src.infrastructure.auth.password_hasher import Argon2PasswordHasher
 from src.infrastructure.persistence.unit_of_work import SqlAlchemyUnitOfWork
@@ -76,6 +76,11 @@ async def get_room_service() -> AsyncIterator[RoomService]:
         yield RoomService(uow)
 
 
+async def get_routine_service() -> AsyncIterator[RoutineService]:
+    async with SqlAlchemyUnitOfWork() as uow:
+        yield RoutineService(uow)
+
+
 async def get_teacher_service() -> AsyncIterator[TeacherService]:
     async with SqlAlchemyUnitOfWork() as uow:
         yield TeacherService(uow)
@@ -97,4 +102,5 @@ CourseServiceDep = Annotated[CourseService, Depends(get_course_service)]
 PeriodServiceDep = Annotated[PeriodService, Depends(get_period_service)]
 RoomServiceDep = Annotated[RoomService, Depends(get_room_service)]
 TeacherServiceDep = Annotated[TeacherService, Depends(get_teacher_service)]
+RoutineServiceDep = Annotated[RoutineService, Depends(get_routine_service)]
 StudentServiceDep = Annotated[StudentService, Depends(get_student_service)]

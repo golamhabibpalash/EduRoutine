@@ -22,7 +22,7 @@ from src.domain.identity.repositories import (
 )
 from src.domain.people.repositories import StudentRepository, TeacherRepository
 from src.domain.resources.repositories import RoomRepository
-from src.domain.timetable.repositories import PeriodRepository
+from src.domain.timetable.repositories import PeriodRepository, RoutineDetailRepository, RoutineRepository
 from src.infrastructure.persistence.database import get_sessionmaker
 from src.infrastructure.persistence.repositories import (
     SqlAlchemyClaimRepository,
@@ -43,7 +43,11 @@ from src.infrastructure.persistence.repositories.people import (
     SqlAlchemyTeacherRepository,
 )
 from src.infrastructure.persistence.repositories.resources import SqlAlchemyRoomRepository
-from src.infrastructure.persistence.repositories.timetable import SqlAlchemyPeriodRepository
+from src.infrastructure.persistence.repositories.timetable import (
+    SqlAlchemyPeriodRepository,
+    SqlAlchemyRoutineDetailRepository,
+    SqlAlchemyRoutineRepository,
+)
 
 
 class SqlAlchemyUnitOfWork:
@@ -65,6 +69,8 @@ class SqlAlchemyUnitOfWork:
     sections: SectionRepository
     courses: CourseRepository
     periods: PeriodRepository
+    routines: RoutineRepository
+    details: RoutineDetailRepository
     rooms: RoomRepository
     teachers: TeacherRepository
     students: StudentRepository
@@ -86,6 +92,8 @@ class SqlAlchemyUnitOfWork:
         self.sections = SqlAlchemySectionRepository(self._session)
         self.courses = SqlAlchemyCourseRepository(self._session)
         self.periods = SqlAlchemyPeriodRepository(self._session)
+        self.routines = SqlAlchemyRoutineRepository(self._session)
+        self.details = SqlAlchemyRoutineDetailRepository(self._session)
         self.rooms = SqlAlchemyRoomRepository(self._session)
         self.teachers = SqlAlchemyTeacherRepository(self._session)
         self.students = SqlAlchemyStudentRepository(self._session)

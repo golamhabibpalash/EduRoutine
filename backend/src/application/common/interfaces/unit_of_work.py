@@ -21,7 +21,7 @@ from src.domain.identity.repositories import (
 )
 from src.domain.people.repositories import StudentRepository, TeacherRepository
 from src.domain.resources.repositories import RoomRepository
-from src.domain.timetable.repositories import PeriodRepository
+from src.domain.timetable.repositories import PeriodRepository, RoutineDetailRepository, RoutineRepository
 
 
 @runtime_checkable
@@ -50,6 +50,8 @@ class UnitOfWork(Protocol):
     courses: CourseRepository
     # timetable
     periods: PeriodRepository
+    routines: RoutineRepository
+    details: RoutineDetailRepository
     # resources / people
     rooms: RoomRepository
     teachers: TeacherRepository
