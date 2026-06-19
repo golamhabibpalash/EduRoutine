@@ -1,5 +1,6 @@
 "use client"
 
+import { useMemo } from "react"
 import { useAuthStore } from "@/store/auth-store"
 import { useUsers } from "@/hooks/use-users"
 import { useCourses } from "@/hooks/use-courses"
@@ -16,8 +17,17 @@ import {
   ArrowRight,
   Clock,
   Users,
+  Activity,
+  Plus,
+  Pencil,
+  Trash2,
+  Send,
+  Archive,
+  Sparkles,
+  LogIn,
 } from "lucide-react"
 import Link from "next/link"
+import { getSampleActivityLog, type ActivityEvent } from "@/lib/activity-log"
 
 const quickLinks = [
   { label: "View Routines", href: "/routines", icon: Calendar },
@@ -26,6 +36,37 @@ const quickLinks = [
   { label: "Room Directory", href: "/rooms", icon: DoorOpen },
   { label: "Scheduling Engine", href: "/scheduling", icon: Clock },
 ]
+
+const TYPE_ICONS: Record<ActivityEvent["type"], typeof Activity> = {
+  create: Plus,
+  update: Pencil,
+  delete: Trash2,
+  publish: Send,
+  archive: Archive,
+  generate: Sparkles,
+  login: LogIn,
+}
+
+const TYPE_COLORS: Record<ActivityEvent["type"], string> = {
+  create: "text-green-600 bg-green-100",
+  update: "text-blue-600 bg-blue-100",
+  delete: "text-red-600 bg-red-100",
+  publish: "text-violet-600 bg-violet-100",
+  archive: "text-amber-600 bg-amber-100",
+  generate: "text-cyan-600 bg-cyan-100",
+  login: "text-slate-600 bg-slate-100",
+}
+
+function timeAgo(date: Date): string {
+  const diff = Date.now() - date.getTime()
+  const mins = Math.floor(diff / 60000)
+  if (mins < 1) return "just now"
+  if (mins < 60) return `${mins}m ago`
+  const hrs = Math.floor(mins / 60)
+  if (hrs < 24) return `${hrs}h ago`
+  const days = Math.floor(hrs / 24)
+  return `${days}d ago`
+}
 
 export function DashboardPage() {
   const user = useAuthStore((s) => s.user)
@@ -40,6 +81,8 @@ export function DashboardPage() {
   const studentCount = studentsData?.pagination?.total_items ?? studentsData?.data?.length ?? 0
   const teacherCount = teachersData?.pagination?.total_items ?? teachersData?.data?.length ?? 0
   const roomCount = roomsData?.pagination?.total_items ?? roomsData?.data?.length ?? 0
+
+  const activityEvents = useMemo(() => getSampleActivityLog(), [])
 
   const statCards = [
     { title: "Active Routines", icon: Calendar, value: "—", description: "No routines published yet", href: "/routines" },
@@ -116,11 +159,34 @@ export function DashboardPage() {
           </CardContent>
         </Card>
         <Card>
-          <CardHeader>
+          <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-base">Recent Activity</CardTitle>
+            <Activity className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground">Activity log will appear here once the system is in use.</p>
+          <CardContent className="space-y-1 max-h-[320px] overflow-y-auto">
+            {activityEvents.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-4 text-center">No recent activity.</p>
+            ) : (
+              activityEvents.map((event) => {
+                const Icon = TYPE_ICONS[event.type]
+                return (
+                  <div
+                    key={event.id}
+                    className="flex items-start gap-3 rounded-md p-2 transition-colors hover:bg-accent/50"
+                  >
+                    <div className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${TYPE_COLORS[event.type]}`}>
+                      <Icon className="h-3.5 w-3.5" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm leading-tight">{event.summary}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {event.userName ?? "System"} &middot; {timeAgo(event.timestamp)}
+                      </p>
+                    </div>
+                  </div>
+                )
+              })
+            )}
           </CardContent>
         </Card>
       </div>

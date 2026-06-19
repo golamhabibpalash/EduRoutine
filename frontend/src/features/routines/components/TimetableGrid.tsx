@@ -1,7 +1,7 @@
 "use client"
 
-import { useMemo } from "react"
-import type { RoutineDetail, DayOfWeek, Period } from "@/types/routines"
+import { useState, useMemo, useCallback } from "react"
+import type { RoutineDetail, DayOfWeek, Period, RoutineConflict } from "@/types/routines"
 
 const DAYS: DayOfWeek[] = ["sunday", "monday", "tuesday", "wednesday", "thursday"]
 
@@ -46,6 +46,8 @@ interface TimetableGridProps {
   periods?: Period[]
   onCellClick?: (day: DayOfWeek, startTime: string) => void
   onCellEdit?: (detailId: string) => void
+  onSlotMove?: (detailId: string, targetDay: DayOfWeek, targetStartTime: string) => void
+  conflicts?: RoutineConflict[]
   loading?: boolean
 }
 
@@ -79,7 +81,21 @@ function buildSlotsMap(details: RoutineDetail[]): Map<string, Map<string, SlotEn
   return map
 }
 
-export function TimetableGrid({ details, periods, onCellClick, onCellEdit, loading }: TimetableGridProps) {
+function getConflictIds(conflicts?: RoutineConflict[]): Set<string> {
+  const ids = new Set<string>()
+  if (!conflicts) return ids
+  for (const c of conflicts) {
+    for (const did of c.detail_ids) ids.add(did)
+  }
+  return ids
+}
+
+export function TimetableGrid({ details, periods, onCellClick, onCellEdit, onSlotMove, conflicts, loading }: TimetableGridProps) {
+  const [dragOver, setDragOver] = useState<string | null>(null)
+  const [dragSource, setDragSource] = useState<string | null>(null)
+
+  const conflictIds = useMemo(() => getConflictIds(conflicts), [conflicts])
+
   const rows = useMemo(() => {
     const slotsMap = buildSlotsMap(details)
 
@@ -121,6 +137,36 @@ export function TimetableGrid({ details, periods, onCellClick, onCellEdit, loadi
       return { label: slot.label, startTime: slot.startTime, endTime: slot.endTime, cells }
     })
   }, [details, periods])
+
+  const handleDragStart = useCallback((e: React.DragEvent, detailId: string) => {
+    setDragSource(detailId)
+    e.dataTransfer.effectAllowed = "move"
+    e.dataTransfer.setData("text/plain", detailId)
+  }, [])
+
+  const handleDragOver = useCallback((e: React.DragEvent, cellKey: string) => {
+    e.preventDefault()
+    e.dataTransfer.dropEffect = "move"
+    setDragOver(cellKey)
+  }, [])
+
+  const handleDragLeave = useCallback(() => {
+    setDragOver(null)
+  }, [])
+
+  const handleDrop = useCallback((e: React.DragEvent, targetDay: DayOfWeek, targetStartTime: string) => {
+    e.preventDefault()
+    setDragOver(null)
+    const detailId = e.dataTransfer.getData("text/plain")
+    if (detailId && onSlotMove) {
+      onSlotMove(detailId, targetDay, targetStartTime)
+    }
+    setDragSource(null)
+  }, [onSlotMove])
+
+  function makeCellKey(day: string, time: string) {
+    return `${day}-${time}`
+  }
 
   if (loading) {
     return (
@@ -164,10 +210,19 @@ export function TimetableGrid({ details, periods, onCellClick, onCellEdit, loadi
               </td>
               {DAYS.map((day) => {
                 const entry = row.cells[day]
+                const ck = makeCellKey(day, row.startTime)
+                const isOver = dragOver === ck
+                const hasConflict = entry && conflictIds.has(entry.id)
+
                 return (
                   <td
                     key={day}
-                    className="border-b border-r p-1 align-top"
+                    className={`border-b border-r p-1 align-top transition-colors ${
+                      isOver ? "bg-accent/40" : ""
+                    } ${entry && !isOver ? "" : ""}`}
+                    onDragOver={(e) => handleDragOver(e, ck)}
+                    onDragLeave={handleDragLeave}
+                    onDrop={(e) => handleDrop(e, day, row.startTime)}
                     onClick={() => {
                       if (entry && onCellEdit) {
                         onCellEdit(entry.id)
@@ -178,7 +233,13 @@ export function TimetableGrid({ details, periods, onCellClick, onCellEdit, loadi
                   >
                     {entry ? (
                       <div
-                        className={`rounded border px-1.5 py-1 text-xs cursor-pointer ${PASTEL_COLORS[entry.colorIndex]}`}
+                        draggable={!!onSlotMove}
+                        onDragStart={(e) => handleDragStart(e, entry.id)}
+                        className={`rounded border px-1.5 py-1 text-xs cursor-${onSlotMove ? "grab" : "pointer"} ${
+                          PASTEL_COLORS[entry.colorIndex]
+                        } ${hasConflict ? "ring-2 ring-destructive" : ""} ${
+                          dragSource === entry.id ? "opacity-40" : ""
+                        }`}
                       >
                         <div className="font-medium truncate">{entry.courseCode}</div>
                         <div className="truncate opacity-75">{entry.teacherName}</div>
@@ -191,7 +252,11 @@ export function TimetableGrid({ details, periods, onCellClick, onCellEdit, loadi
                       </div>
                     ) : (
                       <div
-                        className="min-h-[48px] rounded border border-dashed border-muted-300 cursor-pointer hover:bg-accent/30 transition-colors"
+                        className={`min-h-[48px] rounded border border-dashed cursor-pointer transition-colors ${
+                          isOver
+                            ? "border-primary bg-primary/10"
+                            : "border-muted-300 hover:bg-accent/30"
+                        }`}
                         onClick={() => onCellClick?.(day, row.startTime)}
                       />
                     )}

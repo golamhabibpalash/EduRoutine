@@ -11,7 +11,8 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { ArrowLeft, Play, Archive, Copy, Download, Trash2 } from "lucide-react"
 import { useRoutine, useRoutineDetails, usePublishRoutine, useArchiveRoutine, useCloneRoutine, useDeleteRoutine, useCreateDetail, useUpdateDetail, useDeleteDetail } from "@/hooks/use-routines"
-import type { RoutineDetail, DayOfWeek } from "@/types/routines"
+import { exportToPdf, exportToExcel } from "@/lib/export"
+import type { RoutineDetail, DayOfWeek, RoutineConflict } from "@/types/routines"
 
 interface SlotFormData {
   courseCode: string
@@ -145,6 +146,25 @@ export function RoutineDetailPage({ routineId }: RoutineDetailPageProps) {
     return count
   }, [details])
 
+  const routineConflicts: RoutineConflict[] = useMemo(() => {
+    if (conflictCount === 0) return []
+    const conflictDetailIds = new Set<string>()
+    const seen = new Map<string, string>()
+    for (const d of details) {
+      const key = `${d.day_of_week}-${d.start_time}-${d.room_code}`
+      if (seen.has(key) && seen.get(key) !== d.teacher_name) {
+        conflictDetailIds.add(d.id)
+      }
+      seen.set(key, d.teacher_name ?? "")
+    }
+    return [{
+      type: "room" as const,
+      description: `${conflictCount} conflict(s) detected`,
+      detail_ids: Array.from(conflictDetailIds),
+      severity: "error" as const,
+    }]
+  }, [conflictCount, details])
+
   if (loading) {
     return <div className="p-8 text-center text-muted-foreground">Loading routine...</div>
   }
@@ -193,9 +213,13 @@ export function RoutineDetailPage({ routineId }: RoutineDetailPageProps) {
           <Play className="mr-2 h-4 w-4" />
           Publish
         </Button>
-        <Button size="sm" variant="secondary" disabled>
+        <Button size="sm" variant="secondary" onClick={() => exportToPdf(details, routine.name ?? "Routine")}>
           <Download className="mr-2 h-4 w-4" />
-          Export
+          Export PDF
+        </Button>
+        <Button size="sm" variant="secondary" onClick={() => exportToExcel(details, routine.name ?? "Routine")}>
+          <Download className="mr-2 h-4 w-4" />
+          Export Excel
         </Button>
         <Button size="sm" variant="outline" onClick={() => cloneMutation.mutate(routineId, { onSuccess: (data) => router.push(`/routines/${data.id}`) })}>
           <Copy className="mr-2 h-4 w-4" />
@@ -215,6 +239,10 @@ export function RoutineDetailPage({ routineId }: RoutineDetailPageProps) {
         details={details}
         onCellClick={handleCellClick}
         onCellEdit={handleCellEdit}
+        onSlotMove={(detailId, targetDay, targetStartTime) => {
+          updateDetailMutation.mutate({ day_of_week: targetDay, start_time: targetStartTime })
+        }}
+        conflicts={routineConflicts}
       />
 
       <SlotDialog
