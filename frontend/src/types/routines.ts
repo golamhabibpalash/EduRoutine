@@ -14,10 +14,12 @@ export interface TimeSlot {
 export interface Period {
   id: string
   name: string
+  period_number: number
   start_time: string
   end_time: string
   duration_minutes: number
-  slot_count: number
+  is_break: boolean
+  slot_count?: number
 }
 
 export interface Routine {

@@ -8,21 +8,22 @@ import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Plus, Pencil, Trash2 } from "lucide-react"
 import { periodsApi, type CreatePeriodPayload } from "@/services/routines"
 import type { Period } from "@/types/routines"
 import type { PaginatedResponse } from "@/types/api"
 
-const DEFAULT_PERIODS = [
-  { name: "1st Period", start_time: "08:00", end_time: "09:00", duration_minutes: 60 },
-  { name: "2nd Period", start_time: "09:00", end_time: "10:00", duration_minutes: 60 },
-  { name: "3rd Period", start_time: "10:00", end_time: "11:00", duration_minutes: 60 },
-  { name: "4th Period", start_time: "11:00", end_time: "12:00", duration_minutes: 60 },
-  { name: "Break", start_time: "12:00", end_time: "13:00", duration_minutes: 60 },
-  { name: "5th Period", start_time: "13:00", end_time: "14:00", duration_minutes: 60 },
-  { name: "6th Period", start_time: "14:00", end_time: "15:00", duration_minutes: 60 },
-  { name: "7th Period", start_time: "15:00", end_time: "16:00", duration_minutes: 60 },
-  { name: "8th Period", start_time: "16:00", end_time: "17:00", duration_minutes: 60 },
+const DEFAULT_PERIODS: CreatePeriodPayload[] = [
+  { name: "1st Period", period_number: 1, start_time: "08:00", end_time: "09:00", duration_minutes: 60, is_break: false },
+  { name: "2nd Period", period_number: 2, start_time: "09:00", end_time: "10:00", duration_minutes: 60, is_break: false },
+  { name: "3rd Period", period_number: 3, start_time: "10:00", end_time: "11:00", duration_minutes: 60, is_break: false },
+  { name: "4th Period", period_number: 4, start_time: "11:00", end_time: "12:00", duration_minutes: 60, is_break: false },
+  { name: "Break", period_number: 5, start_time: "12:00", end_time: "13:00", duration_minutes: 60, is_break: true },
+  { name: "5th Period", period_number: 6, start_time: "13:00", end_time: "14:00", duration_minutes: 60, is_break: false },
+  { name: "6th Period", period_number: 7, start_time: "14:00", end_time: "15:00", duration_minutes: 60, is_break: false },
+  { name: "7th Period", period_number: 8, start_time: "15:00", end_time: "16:00", duration_minutes: 60, is_break: false },
+  { name: "8th Period", period_number: 9, start_time: "16:00", end_time: "17:00", duration_minutes: 60, is_break: false },
 ]
 
 export function PeriodsPage() {
@@ -34,6 +35,8 @@ export function PeriodsPage() {
   const [startTime, setStartTime] = useState("")
   const [endTime, setEndTime] = useState("")
   const [duration, setDuration] = useState(60)
+  const [periodNumber, setPeriodNumber] = useState(1)
+  const [isBreak, setIsBreak] = useState(false)
   const [saving, setSaving] = useState(false)
 
   const periods = data?.data ?? []
@@ -65,6 +68,8 @@ export function PeriodsPage() {
           setStartTime(row.original.start_time.slice(0, 5))
           setEndTime(row.original.end_time.slice(0, 5))
           setDuration(row.original.duration_minutes)
+          setPeriodNumber(row.original.period_number)
+          setIsBreak(row.original.is_break)
           setDialogOpen(true)
         }}><Pencil className="h-4 w-4" /></Button>
         <Button size="icon" variant="ghost" onClick={async () => {
@@ -83,6 +88,8 @@ export function PeriodsPage() {
     setStartTime("")
     setEndTime("")
     setDuration(60)
+    setPeriodNumber(periods.length + 1)
+    setIsBreak(false)
     setDialogOpen(true)
   }
 
@@ -90,7 +97,7 @@ export function PeriodsPage() {
     e.preventDefault()
     setSaving(true)
     try {
-      const payload: CreatePeriodPayload = { name, start_time: startTime, end_time: endTime, duration_minutes: duration }
+      const payload: CreatePeriodPayload = { name, period_number: periodNumber, start_time: startTime, end_time: endTime, duration_minutes: duration, is_break: isBreak }
       if (editing) {
         await periodsApi.update(editing.id, payload)
       } else {
@@ -149,6 +156,14 @@ export function PeriodsPage() {
                 <Label htmlFor="endTime">End Time</Label>
                 <Input id="endTime" type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} required />
               </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="periodNumber">Period Number</Label>
+              <Input id="periodNumber" type="number" value={periodNumber} onChange={(e) => setPeriodNumber(Number(e.target.value))} min={1} max={30} />
+            </div>
+            <div className="flex items-center gap-2">
+              <Checkbox id="isBreak" checked={isBreak} onCheckedChange={(v) => setIsBreak(v === true)} />
+              <Label htmlFor="isBreak">Break period</Label>
             </div>
             <div className="space-y-2">
               <Label htmlFor="duration">Duration (minutes)</Label>

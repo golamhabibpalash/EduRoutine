@@ -4,9 +4,11 @@ import type { PaginationParams } from "@/types/api"
 
 export interface CreatePeriodPayload {
   name: string
+  period_number: number
   start_time: string
   end_time: string
   duration_minutes: number
+  is_break: boolean
 }
 
 export const timeSlotsApi = {
@@ -39,7 +41,7 @@ export const periodsApi = {
     const r = await apiClient.post(`${API_PREFIX}/periods`, payload)
     return r.data
   },
-  update: async (id: string, payload: Partial<CreatePeriodPayload>) => {
+  update: async (id: string, payload: CreatePeriodPayload) => {
     const r = await apiClient.put(`${API_PREFIX}/periods/${id}`, payload)
     return r.data
   },
