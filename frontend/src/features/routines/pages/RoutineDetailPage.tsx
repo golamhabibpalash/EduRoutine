@@ -268,7 +268,7 @@ export function RoutineDetailPage({ routineId }: RoutineDetailPageProps) {
         initialData={editingSlot}
         defaultDay={pendingDay}
         defaultStartTime={pendingTime}
-        courses={courses.map((c) => ({ id: c.id, name: c.title, code: c.code }))}
+        courses={courses.filter((c) => c.department_id === routine?.department_id).map((c) => ({ id: c.id, name: c.title, code: c.code }))}
         teachers={teachers.map((t: { id: string; display_name: string }) => ({ id: t.id, name: t.display_name }))}
         rooms={rooms.map((r: { id: string; name: string; code: string }) => ({ id: r.id, name: r.name, code: r.code }))}
         sections={sections.map((s: { id: string; name: string }) => ({ id: s.id, name: s.name }))}
