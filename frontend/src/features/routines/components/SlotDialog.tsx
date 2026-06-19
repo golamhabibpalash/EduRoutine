@@ -1,19 +1,11 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import type { DayOfWeek } from "@/types/routines"
-
-const DAY_OPTIONS: { value: DayOfWeek; label: string }[] = [
-  { value: "sunday", label: "Sunday" },
-  { value: "monday", label: "Monday" },
-  { value: "tuesday", label: "Tuesday" },
-  { value: "wednesday", label: "Wednesday" },
-  { value: "thursday", label: "Thursday" },
-]
 
 interface SelectOption {
   id: string
@@ -66,6 +58,63 @@ function SelectField({ label, options, value, onChange }: { label: string; optio
           <option key={o.id} value={o.id}>{o.code ? `${o.name} (${o.code})` : o.name}</option>
         ))}
       </select>
+    </div>
+  )
+}
+
+function SearchableRoomField({ label, options, value, onChange }: { label: string; options: SelectOption[]; value: string; onChange: (v: string) => void }) {
+  const [open, setOpen] = useState(false)
+  const [query, setQuery] = useState("")
+  const containerRef = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  const selected = options.find((o) => o.id === value)
+
+  const filtered = options.filter(
+    (o) => !query || o.name.toLowerCase().includes(query.toLowerCase()) || (o.code ?? "").toLowerCase().includes(query.toLowerCase())
+  )
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false)
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside)
+    return () => document.removeEventListener("mousedown", handleClickOutside)
+  }, [])
+
+  return (
+    <div className="space-y-2" ref={containerRef}>
+      <Label>{label}</Label>
+      <div className="relative">
+        <input
+          ref={inputRef}
+          value={open ? query : selected ? `${selected.name}${selected.code ? ` (${selected.code})` : ""}` : ""}
+          onChange={(e) => { setQuery(e.target.value); setOpen(true) }}
+          onFocus={() => { setOpen(true); setQuery("") }}
+          placeholder={`Search ${label.toLowerCase()}...`}
+          className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm outline-none focus-visible:ring-1 focus-visible:ring-ring"
+        />
+        {open && (
+          <div className="absolute z-10 mt-1 max-h-48 w-full overflow-auto rounded-md border bg-popover p-1 shadow-md">
+            {filtered.length === 0 ? (
+              <div className="px-2 py-1 text-sm text-muted-foreground">No results</div>
+            ) : (
+              filtered.map((o) => (
+                <button
+                  key={o.id}
+                  type="button"
+                  className={`flex w-full items-center rounded-sm px-2 py-1.5 text-sm text-left hover:bg-accent hover:text-accent-foreground ${o.id === value ? "bg-accent" : ""}`}
+                  onClick={() => { onChange(o.id); setOpen(false); setQuery("") }}
+                >
+                  {o.name}{o.code ? ` (${o.code})` : ""}
+                </button>
+              ))
+            )}
+          </div>
+        )}
+      </div>
     </div>
   )
 }
@@ -153,7 +202,7 @@ export function SlotDialog({
             <SelectField label="Teacher" options={teachers} value={teacherId} onChange={setTeacherId} />
           </div>
           <div className="grid grid-cols-2 gap-4">
-            <SelectField label="Room" options={rooms} value={roomId} onChange={setRoomId} />
+            <SearchableRoomField label="Room" options={rooms} value={roomId} onChange={setRoomId} />
             <SelectField label="Section" options={sections} value={sectionId} onChange={setSectionId} />
           </div>
           <div className="grid grid-cols-2 gap-4">

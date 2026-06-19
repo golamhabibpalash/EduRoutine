@@ -20,7 +20,8 @@ import { periodsApi } from "@/services/routines"
 import { exportToPdf, exportToExcel } from "@/lib/export"
 import type { RoutineDetail, DayOfWeek, RoutineConflict } from "@/types/routines"
 import type { Period } from "@/types/routines"
-import type { Course } from "@/types/academic"
+import type { Course, Section } from "@/types/academic"
+import type { Teacher } from "@/types/teachers"
 import type { SlotFormData } from "@/features/routines/components/SlotDialog"
 
 interface RoutineDetailPageProps {
@@ -152,9 +153,9 @@ export function RoutineDetailPage({ routineId }: RoutineDetailPageProps) {
   const { data: roomsData } = useRooms()
   const { data: sectionsData } = useSections()
   const courses: Course[] = coursesData?.data ?? []
-  const teachers = teachersData?.data ?? []
+  const teachers: Teacher[] = teachersData?.data ?? []
   const rooms = roomsData?.data ?? []
-  const sections = sectionsData?.data ?? []
+  const sections: Section[] = sectionsData?.data ?? []
   const { data: periodsData } = useQuery({
     queryKey: ["periods"],
     queryFn: () => periodsApi.list(),
@@ -269,9 +270,13 @@ export function RoutineDetailPage({ routineId }: RoutineDetailPageProps) {
         defaultDay={pendingDay}
         defaultStartTime={pendingTime}
         courses={courses.filter((c) => c.department_id === routine?.department_id).map((c) => ({ id: c.id, name: c.title, code: c.code }))}
-        teachers={teachers.map((t: { id: string; display_name: string }) => ({ id: t.id, name: t.display_name }))}
+        teachers={teachers
+          .filter((t) => t.department === routine?.department_name)
+          .map((t) => ({ id: t.id, name: t.name }))}
         rooms={rooms.map((r: { id: string; name: string; code: string }) => ({ id: r.id, name: r.name, code: r.code }))}
-        sections={sections.map((s: { id: string; name: string }) => ({ id: s.id, name: s.name }))}
+        sections={sections
+          .filter((s) => s.batch_id === routine?.batch_id)
+          .map((s) => ({ id: s.id, name: `${s.name} (${routine?.batch_name ?? ""})` }))}
       />
 
       {conflictCount > 0 && (
