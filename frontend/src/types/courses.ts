@@ -1,18 +1,12 @@
 export interface Course {
   id: string
+  department_id: string
   code: string
-  name: string
-  description: string | null
+  title: string
   credits: number
   lecture_hours: number
-  tutorial_hours: number
   lab_hours: number
-  total_hours: number
-  department: string
-  semester_id: string
-  semester_name?: string
-  is_lab: boolean
-  prerequisites: string[]
+  is_active: boolean
   created_at: string
   updated_at: string
 }

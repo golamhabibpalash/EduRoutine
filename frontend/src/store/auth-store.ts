@@ -1,6 +1,14 @@
 import { create } from "zustand"
-import type { AuthState, User } from "@/types/auth"
+import type { User } from "@/types/users"
 import { AUTH_TOKEN_KEY, REFRESH_TOKEN_KEY } from "@/lib/constants"
+
+interface AuthState {
+  user: User | null
+  accessToken: string | null
+  refreshToken: string | null
+  isAuthenticated: boolean
+  isLoading: boolean
+}
 
 const COOKIE_PATH = "/"
 const COOKIE_MAX_AGE = 7 * 24 * 60 * 60 // 7 days

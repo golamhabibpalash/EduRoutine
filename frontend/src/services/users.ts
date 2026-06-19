@@ -7,7 +7,7 @@ export const usersApi = {
   list: async (filters?: UserFilters): Promise<PaginatedResponse<User>> => {
     const params = new URLSearchParams()
     if (filters?.search) params.set("q", filters.search)
-    if (filters?.status) params.set("status", filters.status)
+    if (filters?.is_active !== undefined) params.set("is_active", String(filters.is_active))
     if (filters?.page) params.set("page", String(filters.page))
     if (filters?.page_size) params.set("page_size", String(filters.page_size))
     const response = await apiClient.get(`${ENDPOINTS.users.list}?${params}`)

@@ -14,9 +14,7 @@ function removeCookie(name: string) {
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
-  headers: {
-    "Content-Type": "application/json",
-  },
+  headers: { "Content-Type": "application/json" },
   timeout: 30_000,
 })
 
@@ -30,6 +28,19 @@ apiClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   return config
 })
 
+apiClient.interceptors.response.use(
+  (response) => {
+    if (response.data?.status === "success" && response.data?.data !== undefined) {
+      if (response.data.meta?.pagination) {
+        response.data = { data: response.data.data, pagination: response.data.meta.pagination }
+      } else {
+        response.data = response.data.data
+      }
+    }
+    return response
+  },
+)
+
 let isRefreshing = false
 let failedQueue: Array<{
   resolve: (token: string) => void
@@ -38,11 +49,8 @@ let failedQueue: Array<{
 
 function processQueue(error: unknown, token: string | null = null) {
   failedQueue.forEach((prom) => {
-    if (token) {
-      prom.resolve(token)
-    } else {
-      prom.reject(error)
-    }
+    if (token) prom.resolve(token)
+    else prom.reject(error)
   })
   failedQueue = []
 }
@@ -68,18 +76,12 @@ apiClient.interceptors.response.use(
       const refreshToken = localStorage.getItem(REFRESH_TOKEN_KEY)
 
       if (!refreshToken) {
-        localStorage.removeItem(AUTH_TOKEN_KEY)
-        localStorage.removeItem(REFRESH_TOKEN_KEY)
-        removeCookie(AUTH_TOKEN_KEY)
-        removeCookie(REFRESH_TOKEN_KEY)
-        if (typeof window !== "undefined") {
-          window.location.href = "/login"
-        }
+        clearTokens()
         return Promise.reject(error)
       }
 
       try {
-        const response = await axios.post(`${API_BASE_URL}/api/v1/auth/refresh`, {
+        const response = await apiClient.post("/api/v1/auth/refresh", {
           refresh_token: refreshToken,
         })
 
@@ -89,18 +91,11 @@ apiClient.interceptors.response.use(
         setCookie(AUTH_TOKEN_KEY, access_token)
 
         processQueue(null, access_token)
-
         originalRequest.headers.Authorization = `Bearer ${access_token}`
         return apiClient(originalRequest)
       } catch (refreshError) {
         processQueue(refreshError, null)
-        localStorage.removeItem(AUTH_TOKEN_KEY)
-        localStorage.removeItem(REFRESH_TOKEN_KEY)
-        removeCookie(AUTH_TOKEN_KEY)
-        removeCookie(REFRESH_TOKEN_KEY)
-        if (typeof window !== "undefined") {
-          window.location.href = "/login"
-        }
+        clearTokens()
         return Promise.reject(refreshError)
       } finally {
         isRefreshing = false
@@ -110,5 +105,15 @@ apiClient.interceptors.response.use(
     return Promise.reject(error)
   },
 )
+
+function clearTokens() {
+  localStorage.removeItem(AUTH_TOKEN_KEY)
+  localStorage.removeItem(REFRESH_TOKEN_KEY)
+  removeCookie(AUTH_TOKEN_KEY)
+  removeCookie(REFRESH_TOKEN_KEY)
+  if (typeof window !== "undefined") {
+    window.location.href = "/login"
+  }
+}
 
 export default apiClient

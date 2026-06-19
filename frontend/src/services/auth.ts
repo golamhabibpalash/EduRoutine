@@ -7,8 +7,8 @@ import type {
   RegisterResponse,
   RefreshRequest,
   RefreshResponse,
-  User,
 } from "@/types/auth"
+import type { User } from "@/types/users"
 
 export const authApi = {
   login: async (data: LoginRequest): Promise<LoginResponse> => {

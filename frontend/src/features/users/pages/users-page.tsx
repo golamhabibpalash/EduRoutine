@@ -11,13 +11,6 @@ import { UserPlus } from "lucide-react"
 import type { User } from "@/types/users"
 import { useUsers } from "@/hooks/use-users"
 
-const statusVariant: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
-  active: "default",
-  inactive: "secondary",
-  suspended: "destructive",
-  locked: "outline",
-}
-
 const columns: ColumnDef<User>[] = [
   {
     accessorKey: "display_name",
@@ -28,23 +21,12 @@ const columns: ColumnDef<User>[] = [
       </Link>
     ),
   },
+  { accessorKey: "email", header: "Email" },
+  { accessorKey: "phone", header: "Phone", cell: ({ getValue }) => getValue<string | null>() ?? "\u2014" },
   {
-    accessorKey: "email",
-    header: "Email",
-  },
-  {
-    accessorKey: "phone",
-    header: "Phone",
-    cell: ({ getValue }) => getValue<string | null>() ?? "—",
-  },
-  {
-    accessorKey: "status",
+    accessorKey: "is_active",
     header: "Status",
-    cell: ({ row }) => (
-      <Badge variant={statusVariant[row.original.status] ?? "outline"}>
-        {row.original.status}
-      </Badge>
-    ),
+    cell: ({ row }) => row.original.is_active ? <Badge>Active</Badge> : <Badge variant="secondary">Inactive</Badge>,
   },
   {
     accessorKey: "email_verified",
@@ -68,10 +50,7 @@ export function UsersPage() {
 
   return (
     <div>
-      <PageHeader
-        title="Users"
-        description="Manage system users and their access"
-      >
+      <PageHeader title="Users" description="Manage system users and their access">
         <Button disabled>
           <UserPlus className="mr-2 h-4 w-4" />
           Add User

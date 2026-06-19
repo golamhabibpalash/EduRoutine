@@ -29,7 +29,6 @@ export function useAuth() {
     enabled: isAuthenticated,
     retry: false,
     staleTime: 5 * 60 * 1000,
-    meta: { persist: true },
   })
 
   useEffect(() => {
@@ -45,12 +44,14 @@ export function useAuth() {
     mutationFn: authApi.login,
     onSuccess: (data) => {
       setTokens(data.access_token, data.refresh_token)
-      setUser(data.user)
     },
   })
 
   const registerMutation = useMutation({
     mutationFn: authApi.register,
+    onSuccess: (data) => {
+      setTokens(data.access_token, data.refresh_token)
+    },
   })
 
   const logoutMutation = useMutation({

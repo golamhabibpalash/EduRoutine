@@ -1,12 +1,11 @@
-export type UserStatus = "active" | "inactive" | "locked" | "suspended"
-
 export interface User {
   id: string
   email: string
   email_verified: boolean
   display_name: string
   phone: string | null
-  status: UserStatus
+  is_active: boolean
+  roles: string[]
   last_login_at: string | null
   created_at: string
   updated_at: string
@@ -14,7 +13,7 @@ export interface User {
 
 export interface UserFilters {
   search?: string
-  status?: UserStatus
+  is_active?: boolean
   page?: number
   page_size?: number
 }

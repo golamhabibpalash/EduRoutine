@@ -25,10 +25,10 @@ export function Navbar() {
 
   const initials = user?.display_name
     ?.split(" ")
-    .map((n) => n[0])
-    .join("")
-    .toUpperCase()
-    .slice(0, 2) ?? "U"
+    ?.map((n: string) => n[0])
+    ?.join("")
+    ?.toUpperCase()
+    ?.slice(0, 2) ?? "U"
 
   return (
     <header className="sticky top-0 z-50 border-b bg-background">
