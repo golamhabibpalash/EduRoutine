@@ -12,6 +12,7 @@ from src.presentation.api.v1.periods.router import router as periods_router
 from src.presentation.api.v1.routines.router import router as routines_router
 from src.presentation.api.v1.roles.router import router as roles_router
 from src.presentation.api.v1.rooms.router import router as rooms_router
+from src.presentation.api.v1.seed.router import router as seed_router
 from src.presentation.api.v1.users.router import router as users_router
 
 api_v1_router = APIRouter()
@@ -23,4 +24,5 @@ api_v1_router.include_router(academic_router)
 api_v1_router.include_router(periods_router)
 api_v1_router.include_router(routines_router)
 api_v1_router.include_router(rooms_router)
+api_v1_router.include_router(seed_router)
 api_v1_router.include_router(people_router)

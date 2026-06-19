@@ -6,11 +6,12 @@ import { DataTable } from "@/components/ui/data-table"
 import { PageHeader } from "@/components/layout/page-header"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Plus, Pencil, Trash2, Upload } from "lucide-react"
+import { Plus, Pencil, Trash2, Upload, Database, Loader2 } from "lucide-react"
 import { useStudents, useCreateStudent, useUpdateStudent, useDeleteStudent } from "@/hooks/use-students"
 import { StudentDialog } from "@/features/students/components/StudentDialog"
 import { BulkUploadDialog, type FieldMapping } from "@/components/ui/bulk-upload-dialog"
 import { bulkUploadApi } from "@/services/upload"
+import { seedApi } from "@/services/seed"
 import type { Student } from "@/types/students"
 
 const studentFieldMappings: FieldMapping[] = [
@@ -26,6 +27,7 @@ const studentFieldMappings: FieldMapping[] = [
 export function StudentsPage() {
   const [dialogOpen, setDialogOpen] = useState(false)
   const [bulkOpen, setBulkOpen] = useState(false)
+  const [seeding, setSeeding] = useState(false)
   const [editing, setEditing] = useState<Student | null>(null)
   const { data, isLoading, refetch } = useStudents()
   const createMutation = useCreateStudent()
@@ -62,9 +64,25 @@ export function StudentsPage() {
     return bulkUploadApi.students({ items })
   }
 
+  async function handleSeed() {
+    setSeeding(true)
+    try {
+      await seedApi.seed()
+      await refetch()
+    } finally {
+      setSeeding(false)
+    }
+  }
+
   return (
     <div>
       <PageHeader title="Student Records" description="View and manage student enrollments">
+        {students.length === 0 && !isLoading && (
+          <Button variant="outline" onClick={handleSeed} disabled={seeding}>
+            {seeding ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Database className="mr-2 h-4 w-4" />}
+            {seeding ? "Seeding..." : "Load Sample Data"}
+          </Button>
+        )}
         <Button variant="outline" onClick={() => setBulkOpen(true)}>
           <Upload className="mr-2 h-4 w-4" /> Bulk Upload
         </Button>
