@@ -3,7 +3,6 @@
 import { useState, useEffect, useRef } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import type { DayOfWeek } from "@/types/routines"
 
@@ -37,6 +36,7 @@ interface SlotDialogProps {
   defaultDay?: DayOfWeek | null
   defaultStartTime?: string | null
   defaultEndTime?: string | null
+  periodDurationMinutes?: number
   courses?: SelectOption[]
   teachers?: SelectOption[]
   rooms?: SelectOption[]
@@ -60,6 +60,12 @@ function SelectField({ label, options, value, onChange }: { label: string; optio
       </select>
     </div>
   )
+}
+
+function addMinutes(time: string, mins: number) {
+  const [h, m] = time.split(":").map(Number)
+  const d = new Date(2020, 0, 1, h, m + mins)
+  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`
 }
 
 function SearchableRoomField({ label, options, value, onChange }: { label: string; options: SelectOption[]; value: string; onChange: (v: string) => void }) {
@@ -128,6 +134,7 @@ export function SlotDialog({
   defaultDay,
   defaultStartTime,
   defaultEndTime,
+  periodDurationMinutes = 50,
   courses = [],
   teachers = [],
   rooms = [],
@@ -155,11 +162,12 @@ export function SlotDialog({
       setTeacherId("")
       setRoomId("")
       setSectionId("")
-      setStartTime(defaultStartTime ?? "08:00")
-      setEndTime(defaultEndTime ?? "")
+      const st = defaultStartTime ?? "08:00"
+      setStartTime(st)
+      setEndTime(defaultEndTime ?? addMinutes(st, periodDurationMinutes))
       setIsLab(false)
     }
-  }, [initialData, defaultStartTime, defaultEndTime, open])
+  }, [initialData, defaultStartTime, defaultEndTime, periodDurationMinutes, open])
 
   function lookup(id: string, items: SelectOption[]) {
     return items.find((o) => o.id === id)
@@ -204,16 +212,6 @@ export function SlotDialog({
           <div className="grid grid-cols-2 gap-4">
             <SearchableRoomField label="Room" options={rooms} value={roomId} onChange={setRoomId} />
             <SelectField label="Section" options={sections} value={sectionId} onChange={setSectionId} />
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="startTime">Start Time</Label>
-              <Input id="startTime" type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} required />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="endTime">End Time</Label>
-              <Input id="endTime" type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} required />
-            </div>
           </div>
           <div className="flex items-center gap-2">
             <input type="checkbox" id="isLab" checked={isLab} onChange={(e) => setIsLab(e.target.checked)} className="h-4 w-4 rounded border-gray-300" />

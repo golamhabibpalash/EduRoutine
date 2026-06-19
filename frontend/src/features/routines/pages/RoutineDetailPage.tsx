@@ -22,6 +22,7 @@ import type { RoutineDetail, DayOfWeek, RoutineConflict } from "@/types/routines
 import type { Period } from "@/types/routines"
 import type { Course, Section } from "@/types/academic"
 import type { Teacher } from "@/types/teachers"
+import type { Room } from "@/types/rooms"
 import type { SlotFormData } from "@/features/routines/components/SlotDialog"
 
 interface RoutineDetailPageProps {
@@ -154,7 +155,7 @@ export function RoutineDetailPage({ routineId }: RoutineDetailPageProps) {
   const { data: sectionsData } = useSections()
   const courses: Course[] = coursesData?.data ?? []
   const teachers: Teacher[] = teachersData?.data ?? []
-  const rooms = roomsData?.data ?? []
+  const rooms: Room[] = roomsData?.data ?? []
   const sections: Section[] = sectionsData?.data ?? []
   const { data: periodsData } = useQuery({
     queryKey: ["periods"],
@@ -269,11 +270,12 @@ export function RoutineDetailPage({ routineId }: RoutineDetailPageProps) {
         initialData={editingSlot}
         defaultDay={pendingDay}
         defaultStartTime={pendingTime}
+        periodDurationMinutes={50}
         courses={courses.filter((c) => c.department_id === routine?.department_id).map((c) => ({ id: c.id, name: c.title, code: c.code }))}
         teachers={teachers
           .filter((t) => t.department === routine?.department_name)
           .map((t) => ({ id: t.id, name: t.name }))}
-        rooms={rooms.map((r: { id: string; name: string; code: string }) => ({ id: r.id, name: r.name, code: r.code }))}
+        rooms={rooms.map((r) => ({ id: r.id, name: `${r.name} (${r.building})`, code: r.code }))}
         sections={sections
           .filter((s) => s.batch_id === routine?.batch_id)
           .map((s) => ({ id: s.id, name: `${s.name} (${routine?.batch_name ?? ""})` }))}
