@@ -17,6 +17,7 @@ import {
   Clock,
   Hourglass,
   Building2,
+  Shield,
 } from "lucide-react"
 
 const navItems = [
@@ -31,6 +32,7 @@ const navItems = [
   { href: "/scheduling", label: "Scheduling", icon: Clock },
   { href: "/reports", label: "Reports", icon: BarChart3 },
   { href: "/users", label: "Users", icon: Users },
+  { href: "/roles", label: "Roles", icon: Shield },
   { href: "/settings", label: "Settings", icon: Settings },
 ]
 
