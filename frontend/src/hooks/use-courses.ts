@@ -1,7 +1,7 @@
 "use client"
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
-import { coursesApi, type CreateCoursePayload } from "@/services/courses"
+import { coursesApi, type CreateCoursePayload, type UpdateCoursePayload } from "@/services/courses"
 import type { PaginationParams } from "@/types/api"
 
 export function useCourses(filters?: PaginationParams) {
@@ -30,7 +30,7 @@ export function useCreateCourse() {
 export function useUpdateCourse(id: string) {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (payload: Partial<CreateCoursePayload>) => coursesApi.update(id, payload),
+    mutationFn: (payload: UpdateCoursePayload) => coursesApi.update(id, payload),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["courses"] }),
   })
 }

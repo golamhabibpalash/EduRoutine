@@ -379,11 +379,12 @@ class CourseService:
     def __init__(self, uow: UnitOfWork) -> None:
         self._uow = uow
 
-    @staticmethod
-    def _dto(c: Course) -> CourseDTO:
+    async def _dto(self, c: Course) -> CourseDTO:
+        dept = await self._uow.departments.get(c.department_id)
         return CourseDTO(
             id=c.id,
             department_id=c.department_id,
+            department_name=dept.name if dept else "",
             code=c.code,
             title=c.title,
             credits=c.credits,
@@ -395,7 +396,7 @@ class CourseService:
 
     async def get(self, course_id: UUID) -> CourseDTO:
         c = await self._require(course_id)
-        return self._dto(c)
+        return await self._dto(c)
 
     async def list_courses(
         self,
@@ -408,7 +409,7 @@ class CourseService:
             limit=page.limit, offset=page.offset, department_id=department_id, is_active=is_active
         )
         total = await self._uow.courses.count(department_id=department_id, is_active=is_active)
-        return Page([self._dto(c) for c in items], page.page, page.page_size, total)
+        return Page([await self._dto(c) for c in items], page.page, page.page_size, total)
 
     async def create(
         self,
@@ -442,7 +443,7 @@ class CourseService:
         for pid in set(prerequisite_ids):
             await self._uow.courses.add_prerequisite(c.id, pid)
         await self._uow.commit()
-        return self._dto(c)
+        return await self._dto(c)
 
     async def update(
         self,
@@ -459,7 +460,7 @@ class CourseService:
         c.lecture_hours, c.lab_hours, c.is_active = lecture_hours, lab_hours, is_active
         await self._uow.courses.update(c)
         await self._uow.commit()
-        return self._dto(c)
+        return await self._dto(c)
 
     async def deactivate(self, course_id: UUID) -> None:
         c = await self._require(course_id)
@@ -469,7 +470,7 @@ class CourseService:
 
     async def list_prerequisites(self, course_id: UUID) -> list[CourseDTO]:
         await self._require(course_id)
-        return [self._dto(c) for c in await self._uow.courses.list_prerequisites(course_id)]
+        return [await self._dto(c) for c in await self._uow.courses.list_prerequisites(course_id)]
 
     async def add_prerequisite(self, course_id: UUID, prerequisite_id: UUID) -> None:
         await self._require(course_id)

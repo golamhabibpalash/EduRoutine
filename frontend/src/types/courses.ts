@@ -1,6 +1,7 @@
 export interface Course {
   id: string
   department_id: string
+  department_name: string
   code: string
   title: string
   credits: number

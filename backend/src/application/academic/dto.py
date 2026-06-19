@@ -60,6 +60,7 @@ class SectionDTO:
 class CourseDTO:
     id: UUID
     department_id: UUID
+    department_name: str
     code: str
     title: str
     credits: Decimal

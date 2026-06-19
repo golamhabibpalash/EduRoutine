@@ -9,7 +9,16 @@ export interface CreateCoursePayload {
   credits: number
   lecture_hours: number
   lab_hours: number
+  is_active?: boolean
   prerequisite_ids?: string[]
+}
+
+export interface UpdateCoursePayload {
+  title: string
+  credits: number
+  lecture_hours: number
+  lab_hours: number
+  is_active: boolean
 }
 
 export const coursesApi = {
@@ -29,7 +38,7 @@ export const coursesApi = {
     const r = await apiClient.post(`${API_PREFIX}/courses`, payload)
     return r.data
   },
-  update: async (id: string, payload: Partial<CreateCoursePayload>) => {
+  update: async (id: string, payload: UpdateCoursePayload) => {
     const r = await apiClient.put(`${API_PREFIX}/courses/${id}`, payload)
     return r.data
   },

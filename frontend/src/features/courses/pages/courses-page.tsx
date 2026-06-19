@@ -8,10 +8,12 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Plus, Pencil, Trash2, Upload } from "lucide-react"
 import { useCourses, useCreateCourse, useUpdateCourse, useDeleteCourse } from "@/hooks/use-courses"
+import { useDepartments } from "@/hooks/use-academic"
 import { CourseDialog } from "@/features/courses/components/CourseDialog"
 import { BulkUploadDialog, type FieldMapping } from "@/components/ui/bulk-upload-dialog"
 import { bulkUploadApi } from "@/services/upload"
 import type { Course } from "@/types/academic"
+import type { CreateCoursePayload, UpdateCoursePayload } from "@/services/courses"
 
 const courseFieldMappings: FieldMapping[] = [
   { header: "department_id", field: "department_id", required: true },
@@ -27,15 +29,18 @@ export function CoursesPage() {
   const [bulkOpen, setBulkOpen] = useState(false)
   const [editing, setEditing] = useState<Course | null>(null)
   const { data, isLoading, refetch } = useCourses()
+  const { data: deptData } = useDepartments()
   const createMutation = useCreateCourse()
   const updateMutation = useUpdateCourse(editing?.id ?? "")
   const deleteMutation = useDeleteCourse()
 
   const courses: Course[] = data?.data ?? []
+  const departments = deptData?.data ?? []
 
   const columns: ColumnDef<Course>[] = [
     { accessorKey: "code", header: "Code" },
     { accessorKey: "title", header: "Title" },
+    { accessorKey: "department_name", header: "Department" },
     { accessorKey: "credits", header: "Credits", cell: ({ row }) => <span className="font-mono">{row.original.credits}</span> },
     { accessorKey: "lecture_hours", header: "Lecture" },
     { accessorKey: "lab_hours", header: "Lab" },
@@ -48,9 +53,16 @@ export function CoursesPage() {
     )},
   ]
 
-  function handleSave(data: Parameters<typeof createMutation.mutate>[0]) {
+  function handleSave(data: CreateCoursePayload) {
     if (editing) {
-      updateMutation.mutate(data, { onSuccess: () => { setDialogOpen(false); setEditing(null) } })
+      const payload: UpdateCoursePayload = {
+        title: data.title,
+        credits: data.credits,
+        lecture_hours: data.lecture_hours,
+        lab_hours: data.lab_hours,
+        is_active: data.is_active ?? true,
+      }
+      updateMutation.mutate(payload, { onSuccess: () => { setDialogOpen(false); setEditing(null) } })
     } else {
       createMutation.mutate(data, { onSuccess: () => setDialogOpen(false) })
     }
@@ -71,7 +83,7 @@ export function CoursesPage() {
         </Button>
       </PageHeader>
       <DataTable columns={columns} data={courses} searchKey="title" loading={isLoading} />
-      <CourseDialog open={dialogOpen} onOpenChange={setDialogOpen} onSave={handleSave} initialData={editing} />
+      <CourseDialog open={dialogOpen} onOpenChange={setDialogOpen} onSave={handleSave} initialData={editing} departments={departments} />
       <BulkUploadDialog
         open={bulkOpen}
         onOpenChange={(v) => { setBulkOpen(v); if (!v) refetch() }}

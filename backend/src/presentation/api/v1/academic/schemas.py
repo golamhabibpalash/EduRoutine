@@ -113,6 +113,7 @@ class SectionData(BaseModel):
 class CourseData(BaseModel):
     id: UUID
     department_id: UUID
+    department_name: str
     code: str
     title: str
     credits: float
@@ -126,6 +127,7 @@ class CourseData(BaseModel):
         return cls(
             id=c.id,
             department_id=c.department_id,
+            department_name=c.department_name,
             code=c.code,
             title=c.title,
             credits=float(c.credits),
