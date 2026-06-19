@@ -16,12 +16,14 @@ import {
   GraduationCap,
   Clock,
   Hourglass,
+  Building2,
 } from "lucide-react"
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/routines", label: "Routines", icon: Calendar },
   { href: "/periods", label: "Periods", icon: Hourglass },
+  { href: "/academic", label: "Academic", icon: Building2 },
   { href: "/courses", label: "Courses", icon: BookOpen },
   { href: "/teachers", label: "Teachers", icon: UserCircle },
   { href: "/students", label: "Students", icon: GraduationCap },

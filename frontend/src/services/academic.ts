@@ -2,6 +2,12 @@ import apiClient from "./api-client"
 import { API_PREFIX } from "@/lib/constants"
 import type { PaginationParams } from "@/types/api"
 
+export interface CreateDepartmentPayload { name: string; code: string }
+export interface CreateSessionPayload { name: string; start_date: string; end_date: string; is_current?: boolean }
+export interface CreateBatchPayload { session_id: string; department_id: string; name: string; code: string }
+export interface CreateSemesterPayload { session_id: string; name: string; number: number; start_date: string; end_date: string }
+export interface CreateSectionPayload { batch_id: string; name: string; max_capacity: number }
+
 function listParams(p?: PaginationParams) {
   const params = new URLSearchParams()
   if (p?.page) params.set("page", String(p.page))
