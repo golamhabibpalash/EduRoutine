@@ -1,5 +1,6 @@
 "use client"
 
+import { useRouter } from "next/navigation"
 import { useAuth } from "@/hooks/use-auth"
 import { useAuthStore } from "@/store/auth-store"
 import { Button } from "@/components/ui/button"
@@ -19,6 +20,7 @@ import { Menu, LogOut, Settings } from "lucide-react"
 import Link from "next/link"
 
 export function Navbar() {
+  const router = useRouter()
   const { user, logout } = useAuth()
   const { isAuthenticated } = useAuthStore()
 
@@ -78,7 +80,7 @@ export function Navbar() {
               Settings
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => logout()}>
+            <DropdownMenuItem onClick={() => { logout(); router.push("/login") }}>
               <LogOut className="mr-2 h-4 w-4" />
               Log out
             </DropdownMenuItem>
