@@ -1,24 +1,24 @@
 ﻿"use client"
 
-import { useState } from "react"
 import { PageHeader } from "@/components/layout/page-header"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
-import { Save, Bell, Shield, Building, Palette } from "lucide-react"
+import { Save, Bell, Shield, Building, Palette, Loader2 } from "lucide-react"
+import { useSettings } from "@/hooks/use-settings"
 
 export function SettingsPage() {
-  const [institutionName, setInstitutionName] = useState("EduRoutine Institute")
-  const [institutionCode, setInstitutionCode] = useState("ERI")
-  const [timezone, setTimezone] = useState("Asia/Dhaka")
-  const [academicYear, setAcademicYear] = useState("2026")
-  const [saved, setSaved] = useState(false)
+  const { settings, update, save, saving, saved, loading } = useSettings()
 
-  function handleSave() {
-    setSaved(true)
-    setTimeout(() => setSaved(false), 2000)
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    )
   }
 
   return (
@@ -51,17 +51,27 @@ export function SettingsPage() {
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label>Institution Name</Label>
-                  <Input value={institutionName} onChange={(e) => setInstitutionName(e.target.value)} />
+                  <Input
+                    value={settings.institution.institution_name}
+                    onChange={(e) => update("institution", { ...settings.institution, institution_name: e.target.value })}
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label>Institution Code</Label>
-                  <Input value={institutionCode} onChange={(e) => setInstitutionCode(e.target.value.toUpperCase())} />
+                  <Input
+                    value={settings.institution.institution_code}
+                    onChange={(e) => update("institution", { ...settings.institution, institution_code: e.target.value.toUpperCase() })}
+                  />
                 </div>
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label>Timezone</Label>
-                  <select value={timezone} onChange={(e) => setTimezone(e.target.value)} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
+                  <select
+                    value={settings.institution.timezone}
+                    onChange={(e) => update("institution", { ...settings.institution, timezone: e.target.value })}
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  >
                     <option value="Asia/Dhaka">Asia/Dhaka (UTC+6)</option>
                     <option value="Asia/Kolkata">Asia/Kolkata (UTC+5:30)</option>
                     <option value="UTC">UTC</option>
@@ -69,12 +79,15 @@ export function SettingsPage() {
                 </div>
                 <div className="space-y-2">
                   <Label>Academic Year</Label>
-                  <Input value={academicYear} onChange={(e) => setAcademicYear(e.target.value)} />
+                  <Input
+                    value={settings.institution.academic_year}
+                    onChange={(e) => update("institution", { ...settings.institution, academic_year: e.target.value })}
+                  />
                 </div>
               </div>
-              <Button onClick={handleSave} disabled={saved}>
+              <Button onClick={save} disabled={saving || saved}>
                 <Save className="mr-2 h-4 w-4" />
-                {saved ? "Saved!" : "Save Changes"}
+                {saving ? "Saving..." : saved ? "Saved!" : "Save Changes"}
               </Button>
             </CardContent>
           </Card>
@@ -88,20 +101,25 @@ export function SettingsPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               {[
-                { id: "emailSchedule", label: "Email - Schedule changes", checked: true },
-                { id: "emailConflicts", label: "Email - Conflict alerts", checked: true },
-                { id: "emailReports", label: "Email - Weekly reports", checked: false },
-                { id: "pushSchedule", label: "Push - Schedule changes", checked: false },
-                { id: "pushConflicts", label: "Push - Conflict alerts", checked: true },
-              ].map(({ id, label, checked }) => (
+                { id: "email_schedule", label: "Email - Schedule changes", key: "email_schedule" as const },
+                { id: "email_conflicts", label: "Email - Conflict alerts", key: "email_conflicts" as const },
+                { id: "email_reports", label: "Email - Weekly reports", key: "email_reports" as const },
+                { id: "push_schedule", label: "Push - Schedule changes", key: "push_schedule" as const },
+                { id: "push_conflicts", label: "Push - Conflict alerts", key: "push_conflicts" as const },
+              ].map(({ id, label, key }) => (
                 <label key={id} className="flex items-center justify-between rounded-lg border p-3 cursor-pointer">
                   <span className="text-sm">{label}</span>
-                  <input type="checkbox" defaultChecked={checked} className="h-4 w-4 rounded border-gray-300 text-primary" />
+                  <Checkbox
+                    checked={settings.notifications[key]}
+                    onCheckedChange={(v) =>
+                      update("notifications", { ...settings.notifications, [key]: v === true })
+                    }
+                  />
                 </label>
               ))}
-              <Button onClick={handleSave} disabled={saved}>
+              <Button onClick={save} disabled={saving || saved}>
                 <Save className="mr-2 h-4 w-4" />
-                {saved ? "Saved!" : "Save Preferences"}
+                {saving ? "Saving..." : saved ? "Saved!" : "Save Preferences"}
               </Button>
             </CardContent>
           </Card>
@@ -116,23 +134,43 @@ export function SettingsPage() {
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <Label>Session Timeout (minutes)</Label>
-                <Input type="number" defaultValue={60} min={5} max={480} className="max-w-xs" />
+                <Input
+                  type="number"
+                  value={settings.security.session_timeout_minutes}
+                  onChange={(e) => update("security", { ...settings.security, session_timeout_minutes: Number(e.target.value) })}
+                  min={5}
+                  max={480}
+                  className="max-w-xs"
+                />
               </div>
               <div className="space-y-2">
                 <Label>Max Login Attempts</Label>
-                <Input type="number" defaultValue={5} min={3} max={20} className="max-w-xs" />
+                <Input
+                  type="number"
+                  value={settings.security.max_login_attempts}
+                  onChange={(e) => update("security", { ...settings.security, max_login_attempts: Number(e.target.value) })}
+                  min={3}
+                  max={20}
+                  className="max-w-xs"
+                />
               </div>
               <label className="flex items-center gap-3 cursor-pointer">
-                <input type="checkbox" defaultChecked className="h-4 w-4 rounded border-gray-300 text-primary" />
+                <Checkbox
+                  checked={settings.security.require_2fa_admin}
+                  onCheckedChange={(v) => update("security", { ...settings.security, require_2fa_admin: v === true })}
+                />
                 <span className="text-sm">Require two-factor authentication for admin users</span>
               </label>
               <label className="flex items-center gap-3 cursor-pointer">
-                <input type="checkbox" defaultChecked className="h-4 w-4 rounded border-gray-300 text-primary" />
+                <Checkbox
+                  checked={settings.security.ip_whitelist_admin}
+                  onCheckedChange={(v) => update("security", { ...settings.security, ip_whitelist_admin: v === true })}
+                />
                 <span className="text-sm">Enable IP whitelist for admin access</span>
               </label>
-              <Button onClick={handleSave} disabled={saved}>
+              <Button onClick={save} disabled={saving || saved}>
                 <Save className="mr-2 h-4 w-4" />
-                {saved ? "Saved!" : "Save Security Settings"}
+                {saving ? "Saving..." : saved ? "Saved!" : "Save Security Settings"}
               </Button>
             </CardContent>
           </Card>
@@ -148,10 +186,21 @@ export function SettingsPage() {
               <div className="space-y-2">
                 <Label>Theme</Label>
                 <div className="flex gap-3">
-                  {["Light", "Dark", "System"].map((t) => (
-                    <label key={t} className="flex cursor-pointer items-center gap-2 rounded-lg border p-3 hover:bg-muted/50">
-                      <input type="radio" name="theme" defaultChecked={t === "System"} className="h-4 w-4 text-primary" />
-                      <span className="text-sm">{t}</span>
+                  {(["light", "dark", "system"] as const).map((t) => (
+                    <label
+                      key={t}
+                      className={`flex cursor-pointer items-center gap-2 rounded-lg border p-3 hover:bg-muted/50 ${
+                        settings.appearance.theme === t ? "border-primary bg-primary/5" : ""
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="theme"
+                        checked={settings.appearance.theme === t}
+                        onChange={() => update("appearance", { ...settings.appearance, theme: t })}
+                        className="h-4 w-4 text-primary"
+                      />
+                      <span className="text-sm capitalize">{t}</span>
                     </label>
                   ))}
                 </div>
@@ -159,13 +208,16 @@ export function SettingsPage() {
               <div className="space-y-2">
                 <Label>Compact Mode</Label>
                 <label className="flex items-center gap-3 cursor-pointer">
-                  <input type="checkbox" className="h-4 w-4 rounded border-gray-300 text-primary" />
+                  <Checkbox
+                    checked={settings.appearance.compact_mode}
+                    onCheckedChange={(v) => update("appearance", { ...settings.appearance, compact_mode: v === true })}
+                  />
                   <span className="text-sm">Use compact layout for data tables and lists</span>
                 </label>
               </div>
-              <Button onClick={handleSave} disabled={saved}>
+              <Button onClick={save} disabled={saving || saved}>
                 <Save className="mr-2 h-4 w-4" />
-                {saved ? "Saved!" : "Save Appearance"}
+                {saving ? "Saving..." : saved ? "Saved!" : "Save Appearance"}
               </Button>
             </CardContent>
           </Card>
