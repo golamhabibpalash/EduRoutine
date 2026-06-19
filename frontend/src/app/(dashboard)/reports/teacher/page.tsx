@@ -10,6 +10,7 @@ import { TimetableGrid } from "@/features/routines/components/TimetableGrid"
 import { useTeachers } from "@/hooks/use-teachers"
 import { useRoutineDetails } from "@/hooks/use-routines"
 import { useRoutines } from "@/hooks/use-routines"
+import { exportToPdf, exportToExcel } from "@/lib/export"
 import type { RoutineDetail } from "@/types/routines"
 
 export default function TeacherReportRoute() {
@@ -22,12 +23,14 @@ export default function TeacherReportRoute() {
   const teachers = teachersData?.data ?? []
   const routines = routinesData?.data ?? []
   const details: RoutineDetail[] = detailsData?.data ?? []
+  const teacherName = teachers.find((t: { id: string; name: string }) => t.id === teacherId)?.name ?? "Teacher"
 
   return (
     <div className="space-y-6">
       <PageHeader title="Teacher Schedule">
         <div className="flex gap-2">
-          <Button variant="outline" disabled={!teacherId}><Download className="mr-2 h-4 w-4" /> Export PDF</Button>
+          <Button variant="outline" onClick={() => exportToPdf(details, `${teacherName} Schedule`)} disabled={!teacherId}><Download className="mr-2 h-4 w-4" /> Export PDF</Button>
+          <Button variant="outline" onClick={() => exportToExcel(details, `${teacherName} Schedule`)} disabled={!teacherId}><Download className="mr-2 h-4 w-4" /> Export Excel</Button>
           <Link href="/reports"><Button variant="outline"><ArrowLeft className="mr-2 h-4 w-4" /> Back</Button></Link>
         </div>
       </PageHeader>

@@ -23,4 +23,14 @@ export const usersApi = {
     const response = await apiClient.get(ENDPOINTS.users.me)
     return response.data
   },
+
+  assignRoles: async (id: string, roleIds: string[]) => {
+    const response = await apiClient.put(`${ENDPOINTS.users.detail(id)}/roles`, { role_ids: roleIds })
+    return response.data
+  },
+
+  getRoles: async (id: string) => {
+    const response = await apiClient.get(`${ENDPOINTS.users.detail(id)}/roles`)
+    return response.data
+  },
 }

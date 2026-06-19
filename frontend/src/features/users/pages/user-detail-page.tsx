@@ -1,5 +1,6 @@
 "use client"
 
+import { useState } from "react"
 import { useParams } from "next/navigation"
 import Link from "next/link"
 import { useUser } from "@/hooks/use-users"
@@ -7,12 +8,14 @@ import { PageHeader } from "@/components/layout/page-header"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { ArrowLeft, Mail, Phone, Calendar, Shield } from "lucide-react"
+import { ArrowLeft, Mail, Phone, Calendar, Shield, UserCog } from "lucide-react"
+import { AssignRolesDialog } from "@/features/users/components/AssignRolesDialog"
 
 export function UserDetailPage() {
   const params = useParams()
   const id = params?.id as string
   const { data: user, isLoading } = useUser(id)
+  const [rolesOpen, setRolesOpen] = useState(false)
 
   if (isLoading) return <div className="py-12 text-center text-muted-foreground">Loading user...</div>
   if (!user) return <div className="py-12 text-center text-muted-foreground">User not found.</div>
@@ -30,8 +33,11 @@ export function UserDetailPage() {
       <div className="grid gap-6 md:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Shield className="h-5 w-5" /> Account Details
+            <CardTitle className="flex items-center justify-between gap-2">
+              <span className="flex items-center gap-2"><Shield className="h-5 w-5" /> Account Details</span>
+              <Button size="sm" variant="outline" onClick={() => setRolesOpen(true)}>
+                <UserCog className="mr-2 h-4 w-4" /> Manage Roles
+              </Button>
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -80,6 +86,8 @@ export function UserDetailPage() {
           </CardContent>
         </Card>
       </div>
+
+      <AssignRolesDialog open={rolesOpen} onOpenChange={setRolesOpen} user={user} />
     </div>
   )
 }

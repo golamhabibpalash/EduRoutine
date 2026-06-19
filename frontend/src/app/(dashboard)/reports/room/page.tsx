@@ -10,6 +10,7 @@ import { TimetableGrid } from "@/features/routines/components/TimetableGrid"
 import { useRooms } from "@/hooks/use-rooms"
 import { useRoutineDetails } from "@/hooks/use-routines"
 import { useRoutines } from "@/hooks/use-routines"
+import { exportToPdf, exportToExcel } from "@/lib/export"
 import type { RoutineDetail } from "@/types/routines"
 
 export default function RoomReportRoute() {
@@ -22,12 +23,14 @@ export default function RoomReportRoute() {
   const rooms = roomsData?.data ?? []
   const routines = routinesData?.data ?? []
   const details: RoutineDetail[] = detailsData?.data ?? []
+  const roomName = rooms.find((r: { id: string; name: string }) => r.id === roomId)?.name ?? "Room"
 
   return (
     <div className="space-y-6">
       <PageHeader title="Room Utilization">
         <div className="flex gap-2">
-          <Button variant="outline" disabled={!roomId}><Download className="mr-2 h-4 w-4" /> Export</Button>
+          <Button variant="outline" onClick={() => exportToPdf(details, `${roomName} Utilization`)} disabled={!roomId}><Download className="mr-2 h-4 w-4" /> Export PDF</Button>
+          <Button variant="outline" onClick={() => exportToExcel(details, `${roomName} Utilization`)} disabled={!roomId}><Download className="mr-2 h-4 w-4" /> Export Excel</Button>
           <Link href="/reports"><Button variant="outline"><ArrowLeft className="mr-2 h-4 w-4" /> Back</Button></Link>
         </div>
       </PageHeader>

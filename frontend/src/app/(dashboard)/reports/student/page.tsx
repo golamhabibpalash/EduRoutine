@@ -11,6 +11,7 @@ import { useStudents } from "@/hooks/use-students"
 import { reportsApi } from "@/services/scheduling"
 import { useRoutineDetails } from "@/hooks/use-routines"
 import { useRoutines } from "@/hooks/use-routines"
+import { exportToPdf, exportToExcel } from "@/lib/export"
 import type { RoutineDetail } from "@/types/routines"
 
 export default function StudentReportRoute() {
@@ -23,6 +24,7 @@ export default function StudentReportRoute() {
   const students = studentsData?.data ?? []
   const routines = routinesData?.data ?? []
   const details: RoutineDetail[] = detailsData?.data ?? []
+  const studentName = students.find((s: { id: string; name: string }) => s.id === studentId)?.name ?? "Student"
 
   async function handleExport() {
     try { await reportsApi.studentSchedule({ student_id: studentId }) } catch { /* fallback */ }
@@ -32,7 +34,8 @@ export default function StudentReportRoute() {
     <div className="space-y-6">
       <PageHeader title="Student Schedule">
         <div className="flex gap-2">
-          <Button variant="outline" onClick={handleExport} disabled={!studentId}><Download className="mr-2 h-4 w-4" /> Export PDF</Button>
+          <Button variant="outline" onClick={() => exportToPdf(details, `${studentName} Schedule`)} disabled={!studentId}><Download className="mr-2 h-4 w-4" /> Export PDF</Button>
+          <Button variant="outline" onClick={() => exportToExcel(details, `${studentName} Schedule`)} disabled={!studentId}><Download className="mr-2 h-4 w-4" /> Export Excel</Button>
           <Link href="/reports"><Button variant="outline"><ArrowLeft className="mr-2 h-4 w-4" /> Back</Button></Link>
         </div>
       </PageHeader>

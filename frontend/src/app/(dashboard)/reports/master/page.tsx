@@ -8,6 +8,7 @@ import { ArrowLeft, Download } from "lucide-react"
 import { TimetableGrid } from "@/features/routines/components/TimetableGrid"
 import { useRoutineDetails } from "@/hooks/use-routines"
 import { useRoutines } from "@/hooks/use-routines"
+import { exportToPdf, exportToExcel } from "@/lib/export"
 import type { RoutineDetail } from "@/types/routines"
 
 export default function MasterReportRoute() {
@@ -17,6 +18,7 @@ export default function MasterReportRoute() {
 
   const routines = routinesData?.data ?? []
   const details: RoutineDetail[] = detailsData?.data ?? []
+  const routineName = routines.find((r: { id: string; name: string }) => r.id === routineId)?.name ?? "Master Timetable"
 
   return (
     <div className="space-y-6">
@@ -29,8 +31,8 @@ export default function MasterReportRoute() {
               <option key={r.id} value={r.id}>{r.name}</option>
             ))}
           </select>
-          <Button variant="outline" disabled={!routineId}><Download className="mr-2 h-4 w-4" /> Export PDF</Button>
-          <Button variant="outline" disabled={!routineId}><Download className="mr-2 h-4 w-4" /> Export Excel</Button>
+          <Button variant="outline" disabled={!routineId} onClick={() => exportToPdf(details, routineName)}><Download className="mr-2 h-4 w-4" /> Export PDF</Button>
+          <Button variant="outline" disabled={!routineId} onClick={() => exportToExcel(details, routineName)}><Download className="mr-2 h-4 w-4" /> Export Excel</Button>
           <Link href="/reports"><Button variant="outline"><ArrowLeft className="mr-2 h-4 w-4" /> Back</Button></Link>
         </div>
       </PageHeader>
