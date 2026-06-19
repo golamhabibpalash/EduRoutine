@@ -31,6 +31,8 @@ export interface Routine {
   batch_name?: string
   semester_id: string
   semester_name?: string
+  department_id: string
+  department_name?: string
   status: RoutineStatus
   version: number
   published_at: string | null
