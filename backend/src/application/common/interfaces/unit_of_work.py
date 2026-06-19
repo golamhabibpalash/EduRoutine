@@ -19,6 +19,9 @@ from src.domain.identity.repositories import (
     RoleRepository,
     UserRepository,
 )
+from src.domain.people.repositories import StudentRepository, TeacherRepository
+from src.domain.resources.repositories import RoomRepository
+from src.domain.timetable.repositories import PeriodRepository
 
 
 @runtime_checkable
@@ -45,6 +48,12 @@ class UnitOfWork(Protocol):
     batches: BatchRepository
     sections: SectionRepository
     courses: CourseRepository
+    # timetable
+    periods: PeriodRepository
+    # resources / people
+    rooms: RoomRepository
+    teachers: TeacherRepository
+    students: StudentRepository
 
     async def __aenter__(self) -> UnitOfWork:
         """Begin a transaction."""

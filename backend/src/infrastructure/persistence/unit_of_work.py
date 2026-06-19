@@ -20,6 +20,9 @@ from src.domain.identity.repositories import (
     RoleRepository,
     UserRepository,
 )
+from src.domain.people.repositories import StudentRepository, TeacherRepository
+from src.domain.resources.repositories import RoomRepository
+from src.domain.timetable.repositories import PeriodRepository
 from src.infrastructure.persistence.database import get_sessionmaker
 from src.infrastructure.persistence.repositories import (
     SqlAlchemyClaimRepository,
@@ -35,6 +38,12 @@ from src.infrastructure.persistence.repositories.academic import (
     SqlAlchemySemesterRepository,
     SqlAlchemySessionRepository,
 )
+from src.infrastructure.persistence.repositories.people import (
+    SqlAlchemyStudentRepository,
+    SqlAlchemyTeacherRepository,
+)
+from src.infrastructure.persistence.repositories.resources import SqlAlchemyRoomRepository
+from src.infrastructure.persistence.repositories.timetable import SqlAlchemyPeriodRepository
 
 
 class SqlAlchemyUnitOfWork:
@@ -55,6 +64,10 @@ class SqlAlchemyUnitOfWork:
     batches: BatchRepository
     sections: SectionRepository
     courses: CourseRepository
+    periods: PeriodRepository
+    rooms: RoomRepository
+    teachers: TeacherRepository
+    students: StudentRepository
 
     def __init__(self, session_factory: async_sessionmaker[AsyncSession] | None = None) -> None:
         self._session_factory = session_factory or get_sessionmaker()
@@ -72,6 +85,10 @@ class SqlAlchemyUnitOfWork:
         self.batches = SqlAlchemyBatchRepository(self._session)
         self.sections = SqlAlchemySectionRepository(self._session)
         self.courses = SqlAlchemyCourseRepository(self._session)
+        self.periods = SqlAlchemyPeriodRepository(self._session)
+        self.rooms = SqlAlchemyRoomRepository(self._session)
+        self.teachers = SqlAlchemyTeacherRepository(self._session)
+        self.students = SqlAlchemyStudentRepository(self._session)
         return self
 
     async def __aexit__(

@@ -19,6 +19,9 @@ from src.infrastructure.persistence.models.identity import (
     UserModel,
     UserRoleModel,
 )
+from src.infrastructure.persistence.models.people import StudentModel, TeacherModel
+from src.infrastructure.persistence.models.resources import RoomModel
+from src.infrastructure.persistence.models.timetable import PeriodModel
 
 __all__ = [
     "Base",
@@ -26,13 +29,17 @@ __all__ = [
     "CourseModel",
     "CoursePrerequisiteModel",
     "DepartmentModel",
+    "PeriodModel",
     "PermissionModel",
     "RefreshTokenModel",
     "RoleModel",
     "RolePermissionModel",
+    "RoomModel",
     "SectionModel",
     "SemesterModel",
     "SessionModel",
+    "StudentModel",
+    "TeacherModel",
     "UserClaimModel",
     "UserModel",
     "UserRoleModel",

@@ -15,7 +15,10 @@ from src.application.academic.service import (
     SemesterService,
     SessionService,
 )
+from src.application.people.service import StudentService, TeacherService
+from src.application.resources.service import RoomService
 from src.application.roles.service import RoleService
+from src.application.timetable.service import PeriodService
 from src.application.users.service import UserService
 from src.infrastructure.auth.password_hasher import Argon2PasswordHasher
 from src.infrastructure.persistence.unit_of_work import SqlAlchemyUnitOfWork
@@ -63,6 +66,26 @@ async def get_course_service() -> AsyncIterator[CourseService]:
         yield CourseService(uow)
 
 
+async def get_period_service() -> AsyncIterator[PeriodService]:
+    async with SqlAlchemyUnitOfWork() as uow:
+        yield PeriodService(uow)
+
+
+async def get_room_service() -> AsyncIterator[RoomService]:
+    async with SqlAlchemyUnitOfWork() as uow:
+        yield RoomService(uow)
+
+
+async def get_teacher_service() -> AsyncIterator[TeacherService]:
+    async with SqlAlchemyUnitOfWork() as uow:
+        yield TeacherService(uow)
+
+
+async def get_student_service() -> AsyncIterator[StudentService]:
+    async with SqlAlchemyUnitOfWork() as uow:
+        yield StudentService(uow)
+
+
 UserServiceDep = Annotated[UserService, Depends(get_user_service)]
 RoleServiceDep = Annotated[RoleService, Depends(get_role_service)]
 DepartmentServiceDep = Annotated[DepartmentService, Depends(get_department_service)]
@@ -71,3 +94,7 @@ SemesterServiceDep = Annotated[SemesterService, Depends(get_semester_service)]
 BatchServiceDep = Annotated[BatchService, Depends(get_batch_service)]
 SectionServiceDep = Annotated[SectionService, Depends(get_section_service)]
 CourseServiceDep = Annotated[CourseService, Depends(get_course_service)]
+PeriodServiceDep = Annotated[PeriodService, Depends(get_period_service)]
+RoomServiceDep = Annotated[RoomService, Depends(get_room_service)]
+TeacherServiceDep = Annotated[TeacherService, Depends(get_teacher_service)]
+StudentServiceDep = Annotated[StudentService, Depends(get_student_service)]

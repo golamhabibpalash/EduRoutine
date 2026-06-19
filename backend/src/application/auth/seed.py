@@ -58,6 +58,25 @@ PERMISSION_CATALOG: tuple[tuple[str, str, str], ...] = (
     ("course:read:*", "Read courses", "course"),
     ("course:update:*", "Update courses", "course"),
     ("course:delete:*", "Deactivate courses", "course"),
+    # timetable
+    ("period:create:*", "Create periods", "period"),
+    ("period:read:*", "Read periods", "period"),
+    ("period:update:*", "Update periods", "period"),
+    ("period:delete:*", "Delete periods", "period"),
+    # resources
+    ("room:create:*", "Create rooms", "room"),
+    ("room:read:*", "Read rooms", "room"),
+    ("room:update:*", "Update rooms", "room"),
+    ("room:delete:*", "Delete rooms", "room"),
+    # people
+    ("teacher:create:*", "Create teachers", "teacher"),
+    ("teacher:read:*", "Read teachers", "teacher"),
+    ("teacher:update:*", "Update teachers", "teacher"),
+    ("teacher:delete:*", "Delete teachers", "teacher"),
+    ("student:create:*", "Create students", "student"),
+    ("student:read:*", "Read students", "student"),
+    ("student:update:*", "Update students", "student"),
+    ("student:delete:*", "Delete students", "student"),
 )
 
 # role name -> description
