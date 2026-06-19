@@ -15,6 +15,7 @@ from src.application.auth.services.authentication_service import AuthenticationS
 from src.application.common.exceptions import PermissionDeniedError
 from src.infrastructure.auth.jwt_service import JWTService
 from src.infrastructure.auth.password_hasher import Argon2PasswordHasher
+from src.infrastructure.auth.password_reset_service import PasswordResetService
 from src.infrastructure.auth.refresh_token_service import RefreshTokenService
 from src.infrastructure.persistence.unit_of_work import SqlAlchemyUnitOfWork
 from src.shared.config.settings import get_settings
@@ -31,6 +32,7 @@ async def get_auth_service() -> AsyncIterator[AuthenticationService]:
             password_hasher=Argon2PasswordHasher(),
             jwt_service=JWTService(settings),
             refresh_token_service=RefreshTokenService(uow.session),
+            password_reset_service=PasswordResetService(uow.session),
         )
 
 

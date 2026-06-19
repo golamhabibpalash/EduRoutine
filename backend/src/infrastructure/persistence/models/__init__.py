@@ -11,6 +11,7 @@ from src.infrastructure.persistence.models.academic import (
 )
 from src.infrastructure.persistence.models.base import Base
 from src.infrastructure.persistence.models.identity import (
+    PasswordResetTokenModel,
     PermissionModel,
     RefreshTokenModel,
     RoleModel,
@@ -29,6 +30,7 @@ __all__ = [
     "CourseModel",
     "CoursePrerequisiteModel",
     "DepartmentModel",
+    "PasswordResetTokenModel",
     "PeriodModel",
     "PermissionModel",
     "RefreshTokenModel",

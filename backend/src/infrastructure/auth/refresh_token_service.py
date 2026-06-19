@@ -7,7 +7,7 @@ import secrets
 from datetime import timedelta
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.application.common.exceptions import AuthenticationError
@@ -61,6 +61,14 @@ class RefreshTokenService:
         model = result.scalar_one_or_none()
         if model:
             model.is_revoked = True
+
+    async def revoke_all(self, user_id: UUID) -> None:
+        """Revoke every refresh token belonging to a user (e.g. after password reset)."""
+        await self._session.execute(
+            update(RefreshTokenModel)
+            .where(RefreshTokenModel.user_id == user_id)
+            .values(is_revoked=True)
+        )
 
     @staticmethod
     def _hash(raw: str) -> str:

@@ -2,18 +2,23 @@
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass, field
 from uuid import UUID, uuid4
 
-from src.application.common.exceptions import AuthenticationError, ConflictError
+from src.application.common.exceptions import AuthenticationError, ConflictError, ValidationError
 from src.application.common.interfaces.unit_of_work import UnitOfWork
+from src.domain.common.exceptions import BusinessRuleViolationError
 from src.domain.identity.entities.user import User
 from src.domain.identity.services import PasswordHasher
 from src.domain.identity.value_objects.email import EmailAddress
 from src.infrastructure.auth.jwt_service import JWTService
+from src.infrastructure.auth.password_reset_service import PasswordResetService
 from src.infrastructure.auth.refresh_token_service import RefreshTokenService
 from src.shared.config.settings import get_settings
 from src.shared.utils.clock import utcnow
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -63,11 +68,13 @@ class AuthenticationService:
         password_hasher: PasswordHasher,
         jwt_service: JWTService,
         refresh_token_service: RefreshTokenService,
+        password_reset_service: PasswordResetService,
     ) -> None:
         self._uow = uow
         self._hasher = password_hasher
         self._jwt = jwt_service
         self._refresh = refresh_token_service
+        self._reset = password_reset_service
 
     async def register(
         self, email: str, password: str, display_name: str, phone: str | None = None
@@ -130,6 +137,37 @@ class AuthenticationService:
 
     async def logout(self, refresh_token_value: str) -> None:
         await self._refresh.revoke(refresh_token_value)
+        await self._uow.commit()
+
+    async def forgot_password(self, email: str) -> str | None:
+        """Issue a password-reset token for ``email`` if an active account exists.
+
+        Returns the raw token (so the caller can deliver/expose it) or ``None`` when no
+        account matches. The endpoint always responds the same way to avoid user enumeration.
+        """
+        try:
+            email_vo = EmailAddress(email)
+        except BusinessRuleViolationError:
+            return None
+        user = await self._uow.users.get_by_email(email_vo)
+        if user is None:
+            return None
+        raw_token = await self._reset.create(user.id)
+        await self._uow.commit()
+        # In production a real email is sent here; for now we log that a reset was requested.
+        logger.info("Password reset requested for user %s", user.id)
+        return raw_token
+
+    async def reset_password(self, token: str, new_password: str) -> None:
+        """Consume a reset token and set the user's new password (revoking all sessions)."""
+        user_id = await self._reset.consume(token)
+        user = await self._uow.users.get(user_id)
+        if user is None:
+            raise ValidationError("Invalid or expired password reset token.")
+        user.password_hash = self._hasher.hash(new_password)
+        user.updated_at = utcnow()
+        await self._uow.users.update(user)
+        await self._refresh.revoke_all(user_id)
         await self._uow.commit()
 
     async def get_user_info(self, user_id: UUID) -> UserInfoDTO | None:

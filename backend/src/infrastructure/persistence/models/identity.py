@@ -156,3 +156,25 @@ class RefreshTokenModel(UUIDPrimaryKeyMixin, Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
+
+
+class PasswordResetTokenModel(UUIDPrimaryKeyMixin, Base):
+    """``identity.password_reset_tokens`` (opaque, SHA-256 hashed, single-use)."""
+
+    __tablename__ = "password_reset_tokens"
+    __table_args__ = (
+        UniqueConstraint("token_hash", name="uq_password_reset_tokens_token_hash"),
+        {"schema": SCHEMA},
+    )
+
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey(f"{SCHEMA}.users.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    token_hash: Mapped[str] = mapped_column(String(512), nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )

@@ -26,6 +26,16 @@ class RefreshRequest(BaseModel):
     refresh_token: str
 
 
+class ForgotPasswordRequest(BaseModel):
+    email: str = Field(max_length=255)
+
+
+class ResetPasswordRequest(BaseModel):
+    # Field name matches the frontend payload (`{ token, password }`).
+    token: str
+    password: str = Field(min_length=12, max_length=128)
+
+
 class TokenResponse(BaseModel):
     """Refresh response: tokens only."""
 
