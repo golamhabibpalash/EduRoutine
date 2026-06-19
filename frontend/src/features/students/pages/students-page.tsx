@@ -67,8 +67,13 @@ export function StudentsPage() {
   async function handleSeed() {
     setSeeding(true)
     try {
-      await seedApi.seed()
-      await refetch()
+      const result = await seedApi.seed()
+      if (result?.status === "success") {
+        await refetch()
+      }
+    } catch (err) {
+      console.error("Seed failed:", err)
+      alert("Seed failed. Make sure the backend is running (restart it if you just pulled changes).")
     } finally {
       setSeeding(false)
     }
