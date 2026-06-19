@@ -12,21 +12,15 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { ArrowLeft, Play, Archive, Copy, Download, Trash2 } from "lucide-react"
 import { useRoutine, useRoutineDetails, usePublishRoutine, useArchiveRoutine, useCloneRoutine, useDeleteRoutine, useCreateDetail, useUpdateDetail, useDeleteDetail } from "@/hooks/use-routines"
+import { useCourses } from "@/hooks/use-courses"
+import { useTeachers } from "@/hooks/use-teachers"
+import { useRooms } from "@/hooks/use-rooms"
+import { useSections } from "@/hooks/use-academic"
 import { periodsApi } from "@/services/routines"
 import { exportToPdf, exportToExcel } from "@/lib/export"
 import type { RoutineDetail, DayOfWeek, RoutineConflict } from "@/types/routines"
 import type { Period } from "@/types/routines"
-
-interface SlotFormData {
-  courseCode: string
-  courseName: string
-  teacherName: string
-  roomCode: string
-  sectionName: string
-  startTime: string
-  endTime: string
-  isLab: boolean
-}
+import type { SlotFormData } from "@/features/routines/components/SlotDialog"
 
 interface RoutineDetailPageProps {
   routineId: string
@@ -67,11 +61,15 @@ export function RoutineDetailPage({ routineId }: RoutineDetailPageProps) {
     if (!detail) return
     setEditingId(detailId)
     setEditingSlot({
-      courseCode: detail.course_code ?? "",
-      courseName: detail.course_name ?? "",
-      teacherName: detail.teacher_name ?? "",
-      roomCode: detail.room_code ?? "",
-      sectionName: detail.section_name ?? "",
+      course_id: detail.course_id,
+      course_code: detail.course_code ?? "",
+      course_name: detail.course_name ?? "",
+      teacher_id: detail.teacher_id,
+      teacher_name: detail.teacher_name ?? "",
+      room_id: detail.room_id,
+      room_code: detail.room_code ?? "",
+      section_id: detail.section_id,
+      section_name: detail.section_name ?? "",
       startTime: detail.start_time,
       endTime: detail.end_time,
       isLab: detail.is_lab,
@@ -84,11 +82,10 @@ export function RoutineDetailPage({ routineId }: RoutineDetailPageProps) {
   function handleSave(data: SlotFormData) {
     if (editingId) {
       updateDetailMutation.mutate({
-        course_code: data.courseCode,
-        course_name: data.courseName,
-        teacher_name: data.teacherName,
-        room_code: data.roomCode,
-        section_name: data.sectionName,
+        course_id: data.course_id,
+        teacher_id: data.teacher_id,
+        room_id: data.room_id,
+        section_id: data.section_id,
         start_time: data.startTime,
         end_time: data.endTime,
         is_lab: data.isLab,
@@ -104,10 +101,10 @@ export function RoutineDetailPage({ routineId }: RoutineDetailPageProps) {
     } else if (pendingDay && pendingTime) {
       createDetailMutation.mutate({
         routine_id: routineId,
-        course_id: "",
-        teacher_id: "",
-        room_id: "",
-        section_id: "",
+        course_id: data.course_id,
+        teacher_id: data.teacher_id,
+        room_id: data.room_id,
+        section_id: data.section_id,
         day_of_week: pendingDay,
         start_time: data.startTime,
         end_time: data.endTime,
@@ -149,6 +146,14 @@ export function RoutineDetailPage({ routineId }: RoutineDetailPageProps) {
     return count
   }, [details])
 
+  const { data: coursesData } = useCourses()
+  const { data: teachersData } = useTeachers()
+  const { data: roomsData } = useRooms()
+  const { data: sectionsData } = useSections()
+  const courses = coursesData?.data ?? []
+  const teachers = teachersData?.data ?? []
+  const rooms = roomsData?.data ?? []
+  const sections = sectionsData?.data ?? []
   const { data: periodsData } = useQuery({
     queryKey: ["periods"],
     queryFn: () => periodsApi.list(),
@@ -262,6 +267,10 @@ export function RoutineDetailPage({ routineId }: RoutineDetailPageProps) {
         initialData={editingSlot}
         defaultDay={pendingDay}
         defaultStartTime={pendingTime}
+        courses={courses.map((c: { id: string; name: string; code: string }) => ({ id: c.id, name: c.name, code: c.code }))}
+        teachers={teachers.map((t: { id: string; display_name: string }) => ({ id: t.id, name: t.display_name }))}
+        rooms={rooms.map((r: { id: string; name: string; code: string }) => ({ id: r.id, name: r.name, code: r.code }))}
+        sections={sections.map((s: { id: string; name: string }) => ({ id: s.id, name: s.name }))}
       />
 
       {conflictCount > 0 && (

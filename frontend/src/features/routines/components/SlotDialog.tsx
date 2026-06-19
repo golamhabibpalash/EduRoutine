@@ -15,12 +15,22 @@ const DAY_OPTIONS: { value: DayOfWeek; label: string }[] = [
   { value: "thursday", label: "Thursday" },
 ]
 
-interface SlotFormData {
-  courseCode: string
-  courseName: string
-  teacherName: string
-  roomCode: string
-  sectionName: string
+interface SelectOption {
+  id: string
+  name: string
+  code?: string
+}
+
+export interface SlotFormData {
+  course_id: string
+  course_code: string
+  course_name: string
+  teacher_id: string
+  teacher_name: string
+  room_id: string
+  room_code: string
+  section_id: string
+  section_name: string
   startTime: string
   endTime: string
   isLab: boolean
@@ -34,6 +44,30 @@ interface SlotDialogProps {
   initialData?: SlotFormData | null
   defaultDay?: DayOfWeek | null
   defaultStartTime?: string | null
+  defaultEndTime?: string | null
+  courses?: SelectOption[]
+  teachers?: SelectOption[]
+  rooms?: SelectOption[]
+  sections?: SelectOption[]
+}
+
+function SelectField({ label, options, value, onChange }: { label: string; options: SelectOption[]; value: string; onChange: (v: string) => void }) {
+  return (
+    <div className="space-y-2">
+      <Label>{label}</Label>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        required
+        className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm"
+      >
+        <option value="">Select {label.toLowerCase()}...</option>
+        {options.map((o) => (
+          <option key={o.id} value={o.id}>{o.code ? `${o.name} (${o.code})` : o.name}</option>
+        ))}
+      </select>
+    </div>
+  )
 }
 
 export function SlotDialog({
@@ -44,41 +78,64 @@ export function SlotDialog({
   initialData,
   defaultDay,
   defaultStartTime,
+  defaultEndTime,
+  courses = [],
+  teachers = [],
+  rooms = [],
+  sections = [],
 }: SlotDialogProps) {
-  const [courseCode, setCourseCode] = useState("")
-  const [courseName, setCourseName] = useState("")
-  const [teacherName, setTeacherName] = useState("")
-  const [roomCode, setRoomCode] = useState("")
-  const [sectionName, setSectionName] = useState("")
+  const [courseId, setCourseId] = useState("")
+  const [teacherId, setTeacherId] = useState("")
+  const [roomId, setRoomId] = useState("")
+  const [sectionId, setSectionId] = useState("")
   const [startTime, setStartTime] = useState("")
   const [endTime, setEndTime] = useState("")
   const [isLab, setIsLab] = useState(false)
 
   useEffect(() => {
     if (initialData) {
-      setCourseCode(initialData.courseCode)
-      setCourseName(initialData.courseName)
-      setTeacherName(initialData.teacherName)
-      setRoomCode(initialData.roomCode)
-      setSectionName(initialData.sectionName)
+      setCourseId(initialData.course_id)
+      setTeacherId(initialData.teacher_id)
+      setRoomId(initialData.room_id)
+      setSectionId(initialData.section_id)
       setStartTime(initialData.startTime)
       setEndTime(initialData.endTime)
       setIsLab(initialData.isLab)
     } else {
-      setCourseCode("")
-      setCourseName("")
-      setTeacherName("")
-      setRoomCode("")
-      setSectionName("")
+      setCourseId("")
+      setTeacherId("")
+      setRoomId("")
+      setSectionId("")
       setStartTime(defaultStartTime ?? "08:00")
-      setEndTime("")
+      setEndTime(defaultEndTime ?? "")
       setIsLab(false)
     }
-  }, [initialData, defaultStartTime, open])
+  }, [initialData, defaultStartTime, defaultEndTime, open])
+
+  function lookup(id: string, items: SelectOption[]) {
+    return items.find((o) => o.id === id)
+  }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    onSave({ courseCode, courseName, teacherName, roomCode, sectionName, startTime, endTime, isLab })
+    const course = lookup(courseId, courses)
+    const teacher = lookup(teacherId, teachers)
+    const room = lookup(roomId, rooms)
+    const section = lookup(sectionId, sections)
+    onSave({
+      course_id: courseId,
+      course_code: course?.code ?? "",
+      course_name: course?.name ?? "",
+      teacher_id: teacherId,
+      teacher_name: teacher?.name ?? "",
+      room_id: roomId,
+      room_code: room?.code ?? "",
+      section_id: sectionId,
+      section_name: section?.name ?? "",
+      startTime,
+      endTime,
+      isLab,
+    })
   }
 
   return (
@@ -92,46 +149,26 @@ export function SlotDialog({
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="courseCode">Course Code</Label>
-              <Input id="courseCode" value={courseCode} onChange={(e) => setCourseCode(e.target.value.toUpperCase())} placeholder="CSE-101" required />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="courseName">Course Name</Label>
-              <Input id="courseName" value={courseName} onChange={(e) => setCourseName(e.target.value)} placeholder="Data Structures" required />
-            </div>
+            <SelectField label="Course" options={courses} value={courseId} onChange={setCourseId} />
+            <SelectField label="Teacher" options={teachers} value={teacherId} onChange={setTeacherId} />
           </div>
           <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="teacherName">Teacher</Label>
-              <Input id="teacherName" value={teacherName} onChange={(e) => setTeacherName(e.target.value)} placeholder="Dr. Rahman" required />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="roomCode">Room</Label>
-              <Input id="roomCode" value={roomCode} onChange={(e) => setRoomCode(e.target.value.toUpperCase())} placeholder="301" required />
-            </div>
+            <SelectField label="Room" options={rooms} value={roomId} onChange={setRoomId} />
+            <SelectField label="Section" options={sections} value={sectionId} onChange={setSectionId} />
           </div>
           <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="sectionName">Section</Label>
-              <Input id="sectionName" value={sectionName} onChange={(e) => setSectionName(e.target.value)} placeholder="A" />
-            </div>
             <div className="space-y-2">
               <Label htmlFor="startTime">Start Time</Label>
               <Input id="startTime" type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} required />
             </div>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="endTime">End Time</Label>
               <Input id="endTime" type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} required />
             </div>
-            <div className="flex items-end pb-2">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" checked={isLab} onChange={(e) => setIsLab(e.target.checked)} className="h-4 w-4 rounded border-gray-300" />
-                <span className="text-sm">Lab Session</span>
-              </label>
-            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <input type="checkbox" id="isLab" checked={isLab} onChange={(e) => setIsLab(e.target.checked)} className="h-4 w-4 rounded border-gray-300" />
+            <Label htmlFor="isLab">Lab Session</Label>
           </div>
           <DialogFooter className="gap-2">
             {onDelete && initialData && (
