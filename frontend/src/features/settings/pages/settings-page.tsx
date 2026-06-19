@@ -1,5 +1,6 @@
 ﻿"use client"
 
+import { useEffect } from "react"
 import { PageHeader } from "@/components/layout/page-header"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -8,10 +9,19 @@ import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { Save, Bell, Shield, Building, Palette, Loader2 } from "lucide-react"
+import { useTheme } from "next-themes"
 import { useSettings } from "@/hooks/use-settings"
 
 export function SettingsPage() {
   const { settings, update, save, saving, saved, loading } = useSettings()
+
+  const { theme: activeTheme, setTheme } = useTheme()
+
+  useEffect(() => {
+    if (settings.appearance.theme && settings.appearance.theme !== activeTheme) {
+      setTheme(settings.appearance.theme)
+    }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   if (loading) {
     return (
@@ -197,7 +207,10 @@ export function SettingsPage() {
                         type="radio"
                         name="theme"
                         checked={settings.appearance.theme === t}
-                        onChange={() => update("appearance", { ...settings.appearance, theme: t })}
+                        onChange={() => {
+                          update("appearance", { ...settings.appearance, theme: t })
+                          setTheme(t)
+                        }}
                         className="h-4 w-4 text-primary"
                       />
                       <span className="text-sm capitalize">{t}</span>
