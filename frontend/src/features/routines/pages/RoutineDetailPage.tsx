@@ -9,8 +9,9 @@ import { PageHeader } from "@/components/layout/page-header"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { ArrowLeft, Play, Archive, Copy, Download } from "lucide-react"
-import type { RoutineDetail, DayOfWeek, RoutineStatus } from "@/types/routines"
+import { ArrowLeft, Play, Archive, Copy, Download, Trash2 } from "lucide-react"
+import { useRoutine, useRoutineDetails, usePublishRoutine, useArchiveRoutine, useCloneRoutine, useDeleteRoutine, useCreateDetail, useUpdateDetail, useDeleteDetail } from "@/hooks/use-routines"
+import type { RoutineDetail, DayOfWeek } from "@/types/routines"
 
 interface SlotFormData {
   courseCode: string
@@ -23,23 +24,31 @@ interface SlotFormData {
   isLab: boolean
 }
 
-export function RoutineDetailPage() {
+interface RoutineDetailPageProps {
+  routineId: string
+}
+
+export function RoutineDetailPage({ routineId }: RoutineDetailPageProps) {
   const router = useRouter()
-  const [details, setDetails] = useState<RoutineDetail[]>([])
+  const { data: routineData, isLoading: routineLoading } = useRoutine(routineId)
+  const { data: detailsData, isLoading: detailsLoading } = useRoutineDetails(routineId)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingSlot, setEditingSlot] = useState<SlotFormData | null>(null)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [pendingDay, setPendingDay] = useState<DayOfWeek | null>(null)
   const [pendingTime, setPendingTime] = useState<string | null>(null)
 
-  const routine = {
-    id: "1",
-    name: "Sample Routine",
-    status: "draft" as "draft" | "published" | "archived",
-    session_name: "2026",
-    batch_name: "CSE 48",
-    semester_name: "6th",
-  }
+  const publishMutation = usePublishRoutine()
+  const archiveMutation = useArchiveRoutine()
+  const cloneMutation = useCloneRoutine()
+  const deleteMutation = useDeleteRoutine()
+  const createDetailMutation = useCreateDetail()
+  const updateDetailMutation = useUpdateDetail(editingId ?? "")
+  const deleteDetailMutation = useDeleteDetail()
+
+  const routine = routineData
+  const details: RoutineDetail[] = detailsData?.data ?? []
+  const loading = routineLoading || detailsLoading
 
   function handleCellClick(day: DayOfWeek, startTime: string) {
     setEditingSlot(null)
@@ -70,61 +79,59 @@ export function RoutineDetailPage() {
 
   function handleSave(data: SlotFormData) {
     if (editingId) {
-      setDetails((prev) =>
-        prev.map((d) =>
-          d.id === editingId
-            ? {
-                ...d,
-                course_code: data.courseCode,
-                course_name: data.courseName,
-                teacher_name: data.teacherName,
-                room_code: data.roomCode,
-                section_name: data.sectionName,
-                start_time: data.startTime,
-                end_time: data.endTime,
-                is_lab: data.isLab,
-              }
-            : d,
-        ),
-      )
-    } else if (pendingDay && pendingTime) {
-      setDetails((prev) => [
-        ...prev,
-        {
-          id: String(Date.now()),
-          routine_id: "1",
-          course_id: "",
-          course_code: data.courseCode,
-          course_name: data.courseName,
-          teacher_id: "",
-          teacher_name: data.teacherName,
-          room_id: "",
-          room_code: data.roomCode,
-          section_id: "",
-          section_name: data.sectionName || "A",
-          day_of_week: pendingDay,
-          time_slot_id: "",
-          time_slot_name: "",
-          start_time: data.startTime,
-          end_time: data.endTime,
-          is_lab: data.isLab,
+      updateDetailMutation.mutate({
+        course_code: data.courseCode,
+        course_name: data.courseName,
+        teacher_name: data.teacherName,
+        room_code: data.roomCode,
+        section_name: data.sectionName,
+        start_time: data.startTime,
+        end_time: data.endTime,
+        is_lab: data.isLab,
+      }, {
+        onSuccess: () => {
+          setDialogOpen(false)
+          setEditingSlot(null)
+          setEditingId(null)
+          setPendingDay(null)
+          setPendingTime(null)
         },
-      ])
+      })
+    } else if (pendingDay && pendingTime) {
+      createDetailMutation.mutate({
+        routine_id: routineId,
+        course_id: "",
+        teacher_id: "",
+        room_id: "",
+        section_id: "",
+        day_of_week: pendingDay,
+        start_time: data.startTime,
+        end_time: data.endTime,
+        is_lab: data.isLab,
+      }, {
+        onSuccess: () => {
+          setDialogOpen(false)
+          setEditingSlot(null)
+          setEditingId(null)
+          setPendingDay(null)
+          setPendingTime(null)
+        },
+      })
     }
-    setDialogOpen(false)
-    setEditingSlot(null)
-    setEditingId(null)
-    setPendingDay(null)
-    setPendingTime(null)
   }
 
   function handleDelete() {
     if (editingId) {
-      setDetails((prev) => prev.filter((d) => d.id !== editingId))
+      deleteDetailMutation.mutate(editingId, {
+        onSuccess: () => {
+          setDialogOpen(false)
+          setEditingSlot(null)
+          setEditingId(null)
+          setPendingDay(null)
+          setPendingTime(null)
+        },
+      })
     }
-    setDialogOpen(false)
-    setEditingSlot(null)
-    setEditingId(null)
   }
 
   const conflictCount = useMemo(() => {
@@ -138,9 +145,24 @@ export function RoutineDetailPage() {
     return count
   }, [details])
 
+  if (loading) {
+    return <div className="p-8 text-center text-muted-foreground">Loading routine...</div>
+  }
+
+  if (!routine) {
+    return (
+      <div className="space-y-6">
+        <PageHeader title="Routine Not Found">
+          <Link href="/routines"><Button variant="outline"><ArrowLeft className="mr-2 h-4 w-4" />Back</Button></Link>
+        </PageHeader>
+        <p className="text-muted-foreground">The requested routine could not be found.</p>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-6">
-      <PageHeader title={routine.name}>
+      <PageHeader title={routine.name ?? "Routine"}>
         <Link href="/routines">
           <Button variant="outline">
             <ArrowLeft className="mr-2 h-4 w-4" />
@@ -150,11 +172,11 @@ export function RoutineDetailPage() {
       </PageHeader>
 
       <div className="flex flex-wrap items-center gap-4">
-        <Badge variant={routine.status === "published" ? "default" : "secondary"}>
+        <Badge variant={routine.status === "published" ? "default" : routine.status === "archived" ? "outline" : "secondary"}>
           {routine.status}
         </Badge>
         <span className="text-sm text-muted-foreground">
-          {routine.session_name} / {routine.batch_name} / {routine.semester_name}
+          {routine.session_name ?? ""} / {routine.batch_name ?? ""} / {routine.semester_name ?? ""}
         </span>
         <span className="text-sm text-muted-foreground">
           {details.length} entries
@@ -167,21 +189,25 @@ export function RoutineDetailPage() {
       </div>
 
       <div className="flex flex-wrap gap-2">
-        <Button size="sm">
+        <Button size="sm" onClick={() => publishMutation.mutate(routineId)} disabled={routine.status === "published"}>
           <Play className="mr-2 h-4 w-4" />
-          Generate
+          Publish
         </Button>
-        <Button size="sm" variant="secondary">
+        <Button size="sm" variant="secondary" disabled>
           <Download className="mr-2 h-4 w-4" />
           Export
         </Button>
-        <Button size="sm" variant="outline">
+        <Button size="sm" variant="outline" onClick={() => cloneMutation.mutate(routineId, { onSuccess: (data) => router.push(`/routines/${data.id}`) })}>
           <Copy className="mr-2 h-4 w-4" />
           Clone
         </Button>
-        <Button size="sm" variant="outline">
+        <Button size="sm" variant="outline" onClick={() => archiveMutation.mutate(routineId)} disabled={routine.status === "archived"}>
           <Archive className="mr-2 h-4 w-4" />
           Archive
+        </Button>
+        <Button size="sm" variant="destructive" onClick={() => { if (confirm("Delete this routine?")) deleteMutation.mutate(routineId, { onSuccess: () => router.push("/routines") }) }}>
+          <Trash2 className="mr-2 h-4 w-4" />
+          Delete
         </Button>
       </div>
 

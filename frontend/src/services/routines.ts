@@ -67,6 +67,11 @@ export interface CreateDetailPayload {
   start_time: string
   end_time: string
   is_lab: boolean
+  course_code?: string
+  course_name?: string
+  teacher_name?: string
+  room_code?: string
+  section_name?: string
 }
 
 export const routinesApi = {

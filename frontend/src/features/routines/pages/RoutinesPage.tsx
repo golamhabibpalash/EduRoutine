@@ -7,6 +7,7 @@ import { PageHeader } from "@/components/layout/page-header"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Plus } from "lucide-react"
+import { useRoutines } from "@/hooks/use-routines"
 import type { Routine } from "@/types/routines"
 
 const statusVariant: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
@@ -61,7 +62,8 @@ const columns: ColumnDef<Routine>[] = [
 ]
 
 export function RoutinesPage() {
-  const data: Routine[] = []
+  const { data, isLoading } = useRoutines()
+  const routines: Routine[] = data?.data ?? []
 
   return (
     <div>
@@ -79,10 +81,10 @@ export function RoutinesPage() {
 
       <DataTable
         columns={columns}
-        data={data}
+        data={routines}
         searchKey="name"
         searchPlaceholder="Search by name..."
-        loading={false}
+        loading={isLoading}
       />
     </div>
   )
