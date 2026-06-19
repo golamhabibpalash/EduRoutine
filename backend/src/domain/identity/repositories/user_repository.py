@@ -24,14 +24,40 @@ class UserRepository(Protocol):
         """Return whether an active user already uses this email."""
         ...
 
-    async def list(self, *, limit: int, offset: int) -> list[User]:
-        """Return a page of users."""
+    async def list_page(
+        self, *, limit: int, offset: int, is_active: bool | None = None
+    ) -> list[User]:
+        """Return a page of users, optionally filtered by active status."""
+        ...
+
+    async def count(self, *, is_active: bool | None = None) -> int:
+        """Return the total number of users matching the filter."""
         ...
 
     async def add(self, user: User) -> None:
         """Stage a new user for persistence."""
         ...
 
+    async def update(self, user: User) -> None:
+        """Persist changes to an existing user."""
+        ...
+
     async def delete(self, user: User) -> None:
         """Stage a user for removal (soft-delete handled by the service layer)."""
+        ...
+
+    async def get_role_names(self, user_id: UUID) -> list[str]:
+        """Return the names of roles assigned to the user."""
+        ...
+
+    async def get_role_ids(self, user_id: UUID) -> set[UUID]:
+        """Return the ids of roles assigned to the user."""
+        ...
+
+    async def set_role_ids(self, user_id: UUID, role_ids: set[UUID]) -> None:
+        """Replace the user's role assignments."""
+        ...
+
+    async def get_permission_codes(self, user_id: UUID) -> set[str]:
+        """Return the effective permission codes for the user (via their roles)."""
         ...

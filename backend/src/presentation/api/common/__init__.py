@@ -1,17 +1,17 @@
-"""Shared presentation helpers: response envelopes and error handlers."""
+"""Shared presentation helpers: response models and error handlers."""
 
 from src.presentation.api.common.response_models import (
     ErrorBody,
     ErrorResponse,
-    Meta,
-    SuccessResponse,
-    build_meta,
+    PaginatedResponse,
+    Pagination,
+    paginate,
 )
 
 __all__ = [
     "ErrorBody",
     "ErrorResponse",
-    "Meta",
-    "SuccessResponse",
-    "build_meta",
+    "PaginatedResponse",
+    "Pagination",
+    "paginate",
 ]

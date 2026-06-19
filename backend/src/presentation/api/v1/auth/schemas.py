@@ -1,62 +1,52 @@
-"""Auth endpoint request/response Pydantic schemas."""
+"""Auth endpoint request/response schemas (bare shapes)."""
 
 from __future__ import annotations
 
-from pydantic import BaseModel, EmailStr, Field
+from datetime import datetime
+from uuid import UUID
 
+from pydantic import BaseModel, Field
 
-class LoginRequest(BaseModel):
-    email: str = Field(..., examples=["admin@eduroutine.com"])
-    password: str = Field(..., min_length=6)
-
-
-class TokenResponse(BaseModel):
-    access_token: str
-    refresh_token: str
-    token_type: str
-    expires_in: int
-
-
-class UserResponse(BaseModel):
-    id: str
-    email: str
-    email_verified: bool
-    display_name: str
-    phone: str | None = None
-    status: str
-    last_login_at: str | None = None
-    created_at: str
-    updated_at: str
-
-
-class LoginResponse(BaseModel):
-    access_token: str
-    refresh_token: str
-    token_type: str
-    expires_in: int
-    user: UserResponse
+from src.presentation.api.v1.users.schemas import UserData
 
 
 class RegisterRequest(BaseModel):
-    email: str = Field(..., examples=["admin@eduroutine.com"])
-    password: str = Field(..., min_length=6)
-    display_name: str = Field(..., min_length=1, max_length=200)
-    phone: str | None = Field(None, max_length=30)
+    email: str = Field(max_length=255, examples=["user@eduroutine.com"])
+    password: str = Field(min_length=12, max_length=128)
+    display_name: str = Field(min_length=2, max_length=200)
+    phone: str | None = Field(default=None, max_length=30)
 
 
-class RegisterResponse(BaseModel):
-    id: str
-    email: str
-    display_name: str
-    created_at: str
+class LoginRequest(BaseModel):
+    email: str = Field(examples=["admin@eduroutine.com"])
+    password: str = Field(min_length=1)
 
 
 class RefreshRequest(BaseModel):
     refresh_token: str
 
 
-class RefreshResponse(BaseModel):
+class TokenResponse(BaseModel):
+    """Refresh response: tokens only."""
+
     access_token: str
     refresh_token: str
-    token_type: str
+    token_type: str = "Bearer"  # noqa: S105 — field name, not a secret
     expires_in: int
+
+
+class LoginResponse(BaseModel):
+    """Login response: tokens + embedded user."""
+
+    access_token: str
+    refresh_token: str
+    token_type: str = "Bearer"  # noqa: S105 — field name, not a secret
+    expires_in: int
+    user: UserData
+
+
+class RegisterResponse(BaseModel):
+    id: UUID
+    email: str
+    display_name: str
+    created_at: datetime

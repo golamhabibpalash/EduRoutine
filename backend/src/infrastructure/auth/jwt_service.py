@@ -29,7 +29,9 @@ class JWTService:
         }
         if claims:
             payload.update(claims)
-        return jwt.encode(payload, self._settings.jwt_secret_key, algorithm=self._settings.jwt_algorithm)
+        return jwt.encode(
+            payload, self._settings.jwt_secret_key, algorithm=self._settings.jwt_algorithm
+        )
 
     def decode(self, token: str) -> dict[str, Any]:
         """Validate and decode a token's claims."""

@@ -19,14 +19,34 @@ class RoleRepository(Protocol):
         """Return the role with the given unique name, or ``None``."""
         ...
 
-    async def list(self, *, limit: int, offset: int) -> list[Role]:
+    async def list_page(self, *, limit: int, offset: int) -> list[Role]:
         """Return a page of roles."""
+        ...
+
+    async def count(self) -> int:
+        """Return the total number of roles."""
         ...
 
     async def add(self, role: Role) -> None:
         """Stage a new role for persistence."""
         ...
 
+    async def update(self, role: Role) -> None:
+        """Persist changes to an existing role."""
+        ...
+
     async def delete(self, role: Role) -> None:
         """Stage a role for removal."""
+        ...
+
+    async def get_permission_ids(self, role_id: UUID) -> set[UUID]:
+        """Return the ids of permissions granted to the role."""
+        ...
+
+    async def set_permission_ids(self, role_id: UUID, permission_ids: set[UUID]) -> None:
+        """Replace the role's permission grants."""
+        ...
+
+    async def permission_count(self, role_id: UUID) -> int:
+        """Return the number of permissions granted to the role."""
         ...

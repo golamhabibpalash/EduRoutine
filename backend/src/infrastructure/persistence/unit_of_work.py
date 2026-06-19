@@ -6,6 +6,14 @@ from types import TracebackType
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from src.domain.academic.repositories import (
+    BatchRepository,
+    CourseRepository,
+    DepartmentRepository,
+    SectionRepository,
+    SemesterRepository,
+    SessionRepository,
+)
 from src.domain.identity.repositories import (
     ClaimRepository,
     PermissionRepository,
@@ -18,6 +26,14 @@ from src.infrastructure.persistence.repositories import (
     SqlAlchemyPermissionRepository,
     SqlAlchemyRoleRepository,
     SqlAlchemyUserRepository,
+)
+from src.infrastructure.persistence.repositories.academic import (
+    SqlAlchemyBatchRepository,
+    SqlAlchemyCourseRepository,
+    SqlAlchemyDepartmentRepository,
+    SqlAlchemySectionRepository,
+    SqlAlchemySemesterRepository,
+    SqlAlchemySessionRepository,
 )
 
 
@@ -33,6 +49,12 @@ class SqlAlchemyUnitOfWork:
     roles: RoleRepository
     permissions: PermissionRepository
     claims: ClaimRepository
+    departments: DepartmentRepository
+    sessions: SessionRepository
+    semesters: SemesterRepository
+    batches: BatchRepository
+    sections: SectionRepository
+    courses: CourseRepository
 
     def __init__(self, session_factory: async_sessionmaker[AsyncSession] | None = None) -> None:
         self._session_factory = session_factory or get_sessionmaker()
@@ -44,6 +66,12 @@ class SqlAlchemyUnitOfWork:
         self.roles = SqlAlchemyRoleRepository(self._session)
         self.permissions = SqlAlchemyPermissionRepository(self._session)
         self.claims = SqlAlchemyClaimRepository(self._session)
+        self.departments = SqlAlchemyDepartmentRepository(self._session)
+        self.sessions = SqlAlchemySessionRepository(self._session)
+        self.semesters = SqlAlchemySemesterRepository(self._session)
+        self.batches = SqlAlchemyBatchRepository(self._session)
+        self.sections = SqlAlchemySectionRepository(self._session)
+        self.courses = SqlAlchemyCourseRepository(self._session)
         return self
 
     async def __aexit__(
@@ -66,6 +94,9 @@ class SqlAlchemyUnitOfWork:
         if self._session is None:
             raise RuntimeError("UnitOfWork used outside of an active context.")
         return self._session
+
+    async def flush(self) -> None:
+        await self.session.flush()
 
     async def commit(self) -> None:
         await self.session.commit()

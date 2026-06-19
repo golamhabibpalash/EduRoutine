@@ -20,7 +20,7 @@ from src.shared.utils.clock import utcnow
 class TokenPairDTO:
     access_token: str
     refresh_token: str
-    token_type: str = "Bearer"
+    token_type: str = "Bearer"  # noqa: S105 — field name, not a secret value
     expires_in: int = field(default_factory=lambda: get_settings().access_token_ttl_seconds)
 
 
@@ -69,7 +69,9 @@ class AuthenticationService:
         self._jwt = jwt_service
         self._refresh = refresh_token_service
 
-    async def register(self, email: str, password: str, display_name: str, phone: str | None = None) -> AuthResultDTO:
+    async def register(
+        self, email: str, password: str, display_name: str, phone: str | None = None
+    ) -> AuthResultDTO:
         email_vo = EmailAddress(email)
         exists = await self._uow.users.exists_by_email(email_vo)
         if exists:
@@ -87,6 +89,7 @@ class AuthenticationService:
             updated_at=now,
         )
         await self._uow.users.add(user)
+        await self._uow.flush()  # ensure the user row exists before the refresh-token FK insert
         access_token = self._jwt.issue_access_token(subject=str(user.id), claims={"email": email})
         refresh_token = await self._refresh.create(user.id)
         await self._uow.commit()
@@ -135,12 +138,14 @@ class AuthenticationService:
             return None
         return self._build_user_info(user)
 
-    def _build_auth_result(self, user: User, access_token: str, refresh_token: str) -> AuthResultDTO:
+    def _build_auth_result(
+        self, user: User, access_token: str, refresh_token: str
+    ) -> AuthResultDTO:
         settings = get_settings()
         return AuthResultDTO(
             access_token=access_token,
             refresh_token=refresh_token,
-            token_type="Bearer",
+            token_type="Bearer",  # noqa: S106 — token type label, not a secret
             expires_in=settings.access_token_ttl_seconds,
             user_id=user.id,
             email=user.email.value,

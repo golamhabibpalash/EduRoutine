@@ -19,6 +19,10 @@ class ClaimRepository(Protocol):
         """Return all claims belonging to a user."""
         ...
 
+    async def exists(self, user_id: UUID, claim_type: str, claim_value: str) -> bool:
+        """Return whether the exact (user, type, value) claim already exists."""
+        ...
+
     async def add(self, claim: Claim) -> None:
         """Stage a new claim for persistence."""
         ...
