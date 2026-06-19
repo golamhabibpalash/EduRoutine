@@ -24,12 +24,17 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     settings = get_settings()
     if settings.app_env == "development":
         from src.application.auth.seed import seed_identity
+        from src.application.data.seed import seed_data
 
         try:
             await seed_identity()
         except Exception:
-            # Non-blocking: the API still starts (e.g. when the DB is not yet migrated).
             logger.warning("Identity seed skipped/failed on startup.", exc_info=True)
+
+        try:
+            await seed_data()
+        except Exception:
+            logger.warning("Data seed skipped/failed on startup.", exc_info=True)
     yield
 
 
