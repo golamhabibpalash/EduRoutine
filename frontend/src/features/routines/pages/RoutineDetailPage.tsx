@@ -20,6 +20,7 @@ import { periodsApi } from "@/services/routines"
 import { exportToPdf, exportToExcel } from "@/lib/export"
 import type { RoutineDetail, DayOfWeek, RoutineConflict } from "@/types/routines"
 import type { Period } from "@/types/routines"
+import type { Course } from "@/types/academic"
 import type { SlotFormData } from "@/features/routines/components/SlotDialog"
 
 interface RoutineDetailPageProps {
@@ -150,7 +151,7 @@ export function RoutineDetailPage({ routineId }: RoutineDetailPageProps) {
   const { data: teachersData } = useTeachers()
   const { data: roomsData } = useRooms()
   const { data: sectionsData } = useSections()
-  const courses = coursesData?.data ?? []
+  const courses: Course[] = coursesData?.data ?? []
   const teachers = teachersData?.data ?? []
   const rooms = roomsData?.data ?? []
   const sections = sectionsData?.data ?? []
@@ -267,7 +268,7 @@ export function RoutineDetailPage({ routineId }: RoutineDetailPageProps) {
         initialData={editingSlot}
         defaultDay={pendingDay}
         defaultStartTime={pendingTime}
-        courses={courses.map((c: { id: string; name: string; code: string }) => ({ id: c.id, name: c.name, code: c.code }))}
+        courses={courses.map((c) => ({ id: c.id, name: c.title, code: c.code }))}
         teachers={teachers.map((t: { id: string; display_name: string }) => ({ id: t.id, name: t.display_name }))}
         rooms={rooms.map((r: { id: string; name: string; code: string }) => ({ id: r.id, name: r.name, code: r.code }))}
         sections={sections.map((s: { id: string; name: string }) => ({ id: s.id, name: s.name }))}
