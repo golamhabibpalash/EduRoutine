@@ -8,6 +8,8 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Plus, Pencil, Trash2, Upload } from "lucide-react"
 import { useTeachers, useCreateTeacher, useUpdateTeacher, useDeleteTeacher } from "@/hooks/use-teachers"
+import { useDepartments } from "@/hooks/use-academic"
+import { useCourses } from "@/hooks/use-courses"
 import { TeacherDialog } from "@/features/teachers/components/TeacherDialog"
 import { BulkUploadDialog, type FieldMapping } from "@/components/ui/bulk-upload-dialog"
 import { bulkUploadApi } from "@/services/upload"
@@ -28,11 +30,15 @@ export function TeachersPage() {
   const [bulkOpen, setBulkOpen] = useState(false)
   const [editing, setEditing] = useState<Teacher | null>(null)
   const { data, isLoading, refetch } = useTeachers()
+  const { data: deptData } = useDepartments()
+  const { data: courseData } = useCourses()
   const createMutation = useCreateTeacher()
   const updateMutation = useUpdateTeacher(editing?.id ?? "")
   const deleteMutation = useDeleteTeacher()
 
   const teachers: Teacher[] = data?.data ?? []
+  const departments = deptData?.data ?? []
+  const courses = courseData?.data ?? []
 
   const columns: ColumnDef<Teacher>[] = [
     { accessorKey: "employee_id", header: "Employee ID" },
@@ -77,7 +83,7 @@ export function TeachersPage() {
         </Button>
       </PageHeader>
       <DataTable columns={columns} data={teachers} searchKey="name" loading={isLoading} />
-      <TeacherDialog open={dialogOpen} onOpenChange={setDialogOpen} onSave={handleSave} initialData={editing} />
+      <TeacherDialog open={dialogOpen} onOpenChange={setDialogOpen} onSave={handleSave} initialData={editing} departments={departments} courses={courses} />
       <BulkUploadDialog
         open={bulkOpen}
         onOpenChange={(v) => { setBulkOpen(v); if (!v) refetch() }}
