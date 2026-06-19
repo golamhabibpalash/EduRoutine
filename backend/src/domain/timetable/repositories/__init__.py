@@ -1,0 +1,23 @@
+"""Timetable repository ports."""
+
+from __future__ import annotations
+
+from typing import Protocol
+from uuid import UUID
+
+from src.domain.timetable.entities.period import Period
+
+
+class PeriodRepository(Protocol):
+    """Persistence contract for :class:`Period`."""
+
+    async def get(self, period_id: UUID) -> Period | None: ...
+    async def get_by_number(self, period_number: int) -> Period | None: ...
+    async def list_page(self, *, limit: int, offset: int) -> list[Period]: ...
+    async def count(self) -> int: ...
+    async def add(self, period: Period) -> None: ...
+    async def update(self, period: Period) -> None: ...
+    async def delete(self, period: Period) -> None: ...
+
+
+__all__ = ["PeriodRepository"]
