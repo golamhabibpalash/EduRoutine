@@ -128,8 +128,11 @@ class RoutineService:
 
     # ---- helpers ----
 
-    @staticmethod
-    def _dto(r: Routine) -> RoutineDTO:
+    async def _dto(self, r: Routine) -> RoutineDTO:
+        session_name = await self._lookup_name(self._uow.sessions.get, r.session_id)
+        batch_name = await self._lookup_name(self._uow.batches.get, r.batch_id)
+        semester_name = await self._lookup_name(self._uow.semesters.get, r.semester_id)
+        department_name = await self._lookup_name(self._uow.departments.get, r.department_id)
         return RoutineDTO(
             id=r.id,
             name=r.name,
@@ -138,9 +141,20 @@ class RoutineService:
             semester_id=r.semester_id,
             department_id=r.department_id,
             status=r.status,
+            session_name=session_name,
+            batch_name=batch_name,
+            semester_name=semester_name,
+            department_name=department_name,
             created_at=r.created_at,
             updated_at=r.updated_at,
         )
+
+    @staticmethod
+    async def _lookup_name(getter, entity_id) -> str | None:
+        if entity_id is None:
+            return None
+        entity = await getter(entity_id)
+        return entity.name if entity else None
 
     @staticmethod
     def _detail_dto(d: RoutineDetail) -> RoutineDetailDTO:
@@ -168,12 +182,12 @@ class RoutineService:
     # ---- routine CRUD ----
 
     async def get(self, routine_id: UUID) -> RoutineDTO:
-        return self._dto(await self._require(routine_id))
+        return await self._dto(await self._require(routine_id))
 
     async def list_routines(self, page: PageParams) -> Page[RoutineDTO]:
         items = await self._uow.routines.list_page(limit=page.limit, offset=page.offset)
         total = await self._uow.routines.count()
-        return Page([self._dto(r) for r in items], page.page, page.page_size, total)
+        return Page([await self._dto(r) for r in items], page.page, page.page_size, total)
 
     async def create(
         self,
@@ -195,7 +209,7 @@ class RoutineService:
         )
         await self._uow.routines.add(routine)
         await self._uow.commit()
-        return self._dto(routine)
+        return await self._dto(routine)
 
     async def update(
         self,
@@ -215,7 +229,7 @@ class RoutineService:
         routine.department_id = department_id
         await self._uow.routines.update(routine)
         await self._uow.commit()
-        return self._dto(routine)
+        return await self._dto(routine)
 
     async def delete(self, routine_id: UUID) -> None:
         routine = await self._require(routine_id)
@@ -228,14 +242,14 @@ class RoutineService:
         routine.status = "published"
         await self._uow.routines.update(routine)
         await self._uow.commit()
-        return self._dto(routine)
+        return await self._dto(routine)
 
     async def archive(self, routine_id: UUID) -> RoutineDTO:
         routine = await self._require(routine_id)
         routine.status = "archived"
         await self._uow.routines.update(routine)
         await self._uow.commit()
-        return self._dto(routine)
+        return await self._dto(routine)
 
     async def clone(self, routine_id: UUID) -> RoutineDTO:
         original = await self._require(routine_id)
@@ -265,7 +279,7 @@ class RoutineService:
             )
             await self._uow.details.add(cloned_detail)
         await self._uow.commit()
-        return self._dto(clone)
+        return await self._dto(clone)
 
     # ---- detail CRUD ----
 

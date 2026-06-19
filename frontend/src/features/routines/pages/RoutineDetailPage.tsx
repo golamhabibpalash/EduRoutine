@@ -3,6 +3,7 @@
 import { useState, useMemo } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
+import { useQuery } from "@tanstack/react-query"
 import { TimetableGrid } from "@/features/routines/components/TimetableGrid"
 import { SlotDialog } from "@/features/routines/components/SlotDialog"
 import { PageHeader } from "@/components/layout/page-header"
@@ -11,8 +12,10 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { ArrowLeft, Play, Archive, Copy, Download, Trash2 } from "lucide-react"
 import { useRoutine, useRoutineDetails, usePublishRoutine, useArchiveRoutine, useCloneRoutine, useDeleteRoutine, useCreateDetail, useUpdateDetail, useDeleteDetail } from "@/hooks/use-routines"
+import { periodsApi } from "@/services/routines"
 import { exportToPdf, exportToExcel } from "@/lib/export"
 import type { RoutineDetail, DayOfWeek, RoutineConflict } from "@/types/routines"
+import type { Period } from "@/types/routines"
 
 interface SlotFormData {
   courseCode: string
@@ -146,6 +149,11 @@ export function RoutineDetailPage({ routineId }: RoutineDetailPageProps) {
     return count
   }, [details])
 
+  const { data: periodsData } = useQuery({
+    queryKey: ["periods"],
+    queryFn: () => periodsApi.list(),
+  })
+  const periods: Period[] = periodsData?.data ?? []
   const routineConflicts: RoutineConflict[] = useMemo(() => {
     if (conflictCount === 0) return []
     const conflictDetailIds = new Set<string>()
@@ -237,6 +245,7 @@ export function RoutineDetailPage({ routineId }: RoutineDetailPageProps) {
 
       <TimetableGrid
         details={details}
+        periods={periods}
         onCellClick={handleCellClick}
         onCellEdit={handleCellEdit}
         onSlotMove={(detailId, targetDay, targetStartTime) => {
