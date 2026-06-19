@@ -147,7 +147,7 @@ export function RoutineDetailPage({ routineId }: RoutineDetailPageProps) {
     return count
   }, [details])
 
-  const { data: coursesData } = useCourses()
+  const { data: coursesData } = useCourses({ page_size: 100 })
   const { data: teachersData } = useTeachers()
   const { data: roomsData } = useRooms()
   const { data: sectionsData } = useSections()
