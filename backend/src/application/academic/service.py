@@ -144,6 +144,16 @@ class SessionService:
 
     async def delete(self, session_id: UUID) -> None:
         s = await self._require(session_id)
+        semester_count = await self._uow.semesters.count(session_id=session_id)
+        if semester_count > 0:
+            raise ConflictError(
+                f"Cannot delete session '{s.name}': {semester_count} semester(s) reference it."
+            )
+        batch_count = await self._uow.batches.count(session_id=session_id)
+        if batch_count > 0:
+            raise ConflictError(
+                f"Cannot delete session '{s.name}': {batch_count} batch(es) reference it."
+            )
         await self._uow.sessions.delete(s)
         await self._uow.commit()
 

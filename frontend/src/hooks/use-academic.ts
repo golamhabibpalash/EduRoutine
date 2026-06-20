@@ -1,6 +1,9 @@
 "use client"
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
+import { toast } from "sonner"
+import type { AxiosError } from "axios"
+import type { ApiError } from "@/types/api"
 import {
   sessionsApi, batchesApi, semestersApi, sectionsApi, departmentsApi,
   type CreateDepartmentPayload, type CreateSessionPayload,
@@ -77,7 +80,14 @@ export function useDeleteSession() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (id: string) => sessionsApi.delete(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["sessions"] }),
+    onSuccess: () => {
+      toast.success("Session deleted successfully")
+      qc.invalidateQueries({ queryKey: ["sessions"] })
+    },
+    onError: (error: AxiosError<ApiError>) => {
+      const message = error.response?.data?.error?.message ?? "Failed to delete session"
+      toast.error(message)
+    },
   })
 }
 // #endregion

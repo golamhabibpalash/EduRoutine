@@ -115,7 +115,7 @@ function SessionsTab() {
           <Button size="icon" variant="outline" onClick={() => activateMutation.mutate(row.original.id)} title="Activate"><CheckCircle2 className="h-4 w-4 text-green-600" /></Button>
         )}
         <Button size="icon" variant="ghost" onClick={() => { setEditing(row.original); setDialogOpen(true) }}><Pencil className="h-4 w-4" /></Button>
-        <Button size="icon" variant="ghost" onClick={() => { if (confirm("Delete this session?")) deleteMutation.mutate(row.original.id) }}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+        <Button size="icon" variant="ghost" onClick={() => deleteMutation.mutate(row.original.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
       </div>
     )},
   ]
