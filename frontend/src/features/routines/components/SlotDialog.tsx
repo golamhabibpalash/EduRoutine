@@ -36,7 +36,6 @@ interface SlotDialogProps {
   defaultDay?: DayOfWeek | null
   defaultStartTime?: string | null
   defaultEndTime?: string | null
-  periodDurationMinutes?: number
   courses?: SelectOption[]
   teachers?: SelectOption[]
   rooms?: SelectOption[]
@@ -60,12 +59,6 @@ function SelectField({ label, options, value, onChange }: { label: string; optio
       </select>
     </div>
   )
-}
-
-function addMinutes(time: string, mins: number) {
-  const [h, m] = time.split(":").map(Number)
-  const d = new Date(2020, 0, 1, h, m + mins)
-  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`
 }
 
 function SearchableRoomField({ label, options, value, onChange }: { label: string; options: SelectOption[]; value: string; onChange: (v: string) => void }) {
@@ -135,7 +128,6 @@ export function SlotDialog({
   defaultDay,
   defaultStartTime,
   defaultEndTime,
-  periodDurationMinutes = 50,
   courses = [],
   teachers = [],
   rooms = [],
@@ -163,12 +155,11 @@ export function SlotDialog({
       setTeacherId("")
       setRoomId("")
       setSectionId("")
-      const st = defaultStartTime ?? "08:00"
-      setStartTime(st)
-      setEndTime(defaultEndTime ?? addMinutes(st, periodDurationMinutes))
+      setStartTime(defaultStartTime ?? "08:00")
+      setEndTime(defaultEndTime ?? "08:50")
       setIsLab(false)
     }
-  }, [initialData, defaultStartTime, defaultEndTime, periodDurationMinutes, open])
+  }, [initialData, defaultStartTime, defaultEndTime, open])
 
   function lookup(id: string, items: SelectOption[]) {
     return items.find((o) => o.id === id)

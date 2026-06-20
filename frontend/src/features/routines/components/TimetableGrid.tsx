@@ -44,7 +44,7 @@ interface SlotEntry {
 interface TimetableGridProps {
   details: RoutineDetail[]
   periods?: Period[]
-  onCellClick?: (day: DayOfWeek, startTime: string) => void
+  onCellClick?: (day: DayOfWeek, startTime: string, endTime: string) => void
   onCellEdit?: (detailId: string) => void
   onSlotMove?: (detailId: string, targetDay: DayOfWeek, targetStartTime: string) => void
   conflicts?: RoutineConflict[]
@@ -226,8 +226,9 @@ export function TimetableGrid({ details, periods, onCellClick, onCellEdit, onSlo
                     onClick={() => {
                       if (entry && onCellEdit) {
                         onCellEdit(entry.id)
-                      } else if (!entry && onCellClick) {
-                        onCellClick(day, row.startTime)
+                      }
+                      if (!entry && onCellClick) {
+                        onCellClick(day, row.startTime, row.endTime)
                       }
                     }}
                   >
@@ -257,7 +258,7 @@ export function TimetableGrid({ details, periods, onCellClick, onCellEdit, onSlo
                             ? "border-primary bg-primary/10"
                             : "border-muted-300 hover:bg-accent/30"
                         }`}
-                        onClick={() => onCellClick?.(day, row.startTime)}
+                        onClick={() => onCellClick?.(day, row.startTime, row.endTime)}
                       />
                     )}
                   </td>

@@ -38,6 +38,7 @@ export function RoutineDetailPage({ routineId }: RoutineDetailPageProps) {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [pendingDay, setPendingDay] = useState<DayOfWeek | null>(null)
   const [pendingTime, setPendingTime] = useState<string | null>(null)
+  const [pendingEndTime, setPendingEndTime] = useState<string | null>(null)
 
   const publishMutation = usePublishRoutine()
   const archiveMutation = useArchiveRoutine()
@@ -51,11 +52,12 @@ export function RoutineDetailPage({ routineId }: RoutineDetailPageProps) {
   const details: RoutineDetail[] = detailsData?.data ?? []
   const loading = routineLoading || detailsLoading
 
-  function handleCellClick(day: DayOfWeek, startTime: string) {
+  function handleCellClick(day: DayOfWeek, startTime: string, endTime: string) {
     setEditingSlot(null)
     setEditingId(null)
     setPendingDay(day)
     setPendingTime(startTime)
+    setPendingEndTime(endTime)
     setDialogOpen(true)
   }
 
@@ -79,6 +81,7 @@ export function RoutineDetailPage({ routineId }: RoutineDetailPageProps) {
     })
     setPendingDay(detail.day_of_week)
     setPendingTime(detail.start_time)
+    setPendingEndTime(detail.end_time)
     setDialogOpen(true)
   }
 
@@ -99,6 +102,7 @@ export function RoutineDetailPage({ routineId }: RoutineDetailPageProps) {
           setEditingId(null)
           setPendingDay(null)
           setPendingTime(null)
+          setPendingEndTime(null)
         },
       })
     } else if (pendingDay && pendingTime) {
@@ -119,6 +123,7 @@ export function RoutineDetailPage({ routineId }: RoutineDetailPageProps) {
           setEditingId(null)
           setPendingDay(null)
           setPendingTime(null)
+          setPendingEndTime(null)
         },
       })
     }
@@ -270,7 +275,7 @@ export function RoutineDetailPage({ routineId }: RoutineDetailPageProps) {
         initialData={editingSlot}
         defaultDay={pendingDay}
         defaultStartTime={pendingTime}
-        periodDurationMinutes={50}
+        defaultEndTime={pendingEndTime}
         courses={courses.filter((c) => c.department_id === routine?.department_id).map((c) => ({ id: c.id, name: c.title, code: c.code }))}
         teachers={teachers
           .filter((t) => t.department === routine?.department_name)
