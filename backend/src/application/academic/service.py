@@ -374,6 +374,11 @@ class SectionService:
 
     async def delete(self, section_id: UUID) -> None:
         s = await self._require(section_id)
+        student_count = await self._uow.students.count(section_id=section_id)
+        if student_count > 0:
+            raise ConflictError(
+                f"Cannot delete section '{s.name}': {student_count} student(s) are enrolled."
+            )
         await self._uow.sections.delete(s)
         await self._uow.commit()
 

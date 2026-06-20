@@ -186,7 +186,14 @@ export function useDeleteSection() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (id: string) => sectionsApi.delete(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["sections"] }),
+    onSuccess: () => {
+      toast.success("Section deleted successfully")
+      qc.invalidateQueries({ queryKey: ["sections"] })
+    },
+    onError: (error: AxiosError<ApiError>) => {
+      const message = error.response?.data?.error?.message ?? "Failed to delete section"
+      toast.error(message)
+    },
   })
 }
 // #endregion

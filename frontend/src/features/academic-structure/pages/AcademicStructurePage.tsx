@@ -258,7 +258,7 @@ function SectionsTab() {
     { id: "actions", cell: ({ row }) => (
       <div className="flex gap-1">
         <Button size="icon" variant="ghost" onClick={() => { setEditing(row.original); setDialogOpen(true) }}><Pencil className="h-4 w-4" /></Button>
-        <Button size="icon" variant="ghost" onClick={() => { if (confirm("Delete this section?")) deleteMutation.mutate(row.original.id) }}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+        <Button size="icon" variant="ghost" onClick={() => deleteMutation.mutate(row.original.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
       </div>
     )},
   ]
