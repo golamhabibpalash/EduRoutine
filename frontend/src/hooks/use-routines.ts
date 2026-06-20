@@ -82,7 +82,7 @@ export function useCreateDetail() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (payload: CreateDetailPayload) => routinesApi.details.create(payload),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["routine-details"] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["routine-details"], refetchType: "active" }),
   })
 }
 
@@ -90,7 +90,7 @@ export function useUpdateDetail(id: string) {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (payload: Partial<CreateDetailPayload>) => routinesApi.details.update(id, payload),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["routine-details"] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["routine-details"], refetchType: "active" }),
   })
 }
 
@@ -98,7 +98,7 @@ export function useDeleteDetail() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (id: string) => routinesApi.details.delete(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["routine-details"] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["routine-details"], refetchType: "active" }),
   })
 }
 // #endregion

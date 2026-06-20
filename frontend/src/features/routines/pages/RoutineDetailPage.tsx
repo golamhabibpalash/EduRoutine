@@ -49,7 +49,7 @@ export function RoutineDetailPage({ routineId }: RoutineDetailPageProps) {
   const deleteDetailMutation = useDeleteDetail()
 
   const routine = routineData
-  const details: RoutineDetail[] = detailsData?.data ?? []
+  const details: RoutineDetail[] = detailsData ?? []
   const loading = routineLoading || detailsLoading
 
   function handleCellClick(day: DayOfWeek, startTime: string, endTime: string) {
