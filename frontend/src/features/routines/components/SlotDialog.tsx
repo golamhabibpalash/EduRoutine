@@ -179,8 +179,8 @@ export function SlotDialog({
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError("")
-    if (!courseId || !teacherId || !roomId) {
-      setError("Please select a course, teacher, and room.")
+    if (!courseId || !teacherId || !roomId || !sectionId) {
+      setError("Please select a course, teacher, room, and section.")
       return
     }
     const course = lookup(courseId, courses)
