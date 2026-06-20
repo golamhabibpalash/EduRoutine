@@ -99,6 +99,7 @@ function SearchableRoomField({ label, options, value, onChange }: { label: strin
           value={open ? query : selected ? `${selected.name}${selected.code ? ` (${selected.code})` : ""}` : ""}
           onChange={(e) => { setQuery(e.target.value); setOpen(true) }}
           onFocus={() => { setOpen(true); setQuery("") }}
+          required
           placeholder={`Search ${label.toLowerCase()}...`}
           className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm outline-none focus-visible:ring-1 focus-visible:ring-ring"
         />
@@ -173,8 +174,15 @@ export function SlotDialog({
     return items.find((o) => o.id === id)
   }
 
+  const [error, setError] = useState("")
+
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
+    setError("")
+    if (!courseId || !teacherId || !roomId) {
+      setError("Please select a course, teacher, and room.")
+      return
+    }
     const course = lookup(courseId, courses)
     const teacher = lookup(teacherId, teachers)
     const room = lookup(roomId, rooms)
@@ -217,6 +225,7 @@ export function SlotDialog({
             <input type="checkbox" id="isLab" checked={isLab} onChange={(e) => setIsLab(e.target.checked)} className="h-4 w-4 rounded border-gray-300" />
             <Label htmlFor="isLab">Lab Session</Label>
           </div>
+          {error && <p className="text-sm text-destructive">{error}</p>}
           <DialogFooter className="gap-2">
             {onDelete && initialData && (
               <Button type="button" variant="destructive" onClick={onDelete} className="mr-auto">

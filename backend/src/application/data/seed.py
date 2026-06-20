@@ -45,18 +45,18 @@ SEED_PERIODS: tuple[tuple[str, int, int, int, int, bool], ...] = (
 )
 
 SEED_ROOMS: tuple[tuple[str, str, str, int, str, int, bool, bool], ...] = (
-    ("CSE-101", "Lecture Hall 101", "lecture", 60, "Main Building", 1, True, False),
-    ("CSE-102", "Lecture Hall 102", "lecture", 50, "Main Building", 1, True, False),
-    ("CSE-201", "Lecture Hall 201", "lecture", 45, "Main Building", 2, True, False),
-    ("CSE-202", "Lecture Hall 202", "lecture", 40, "Main Building", 2, True, False),
+    ("CSE-101", "Lecture Hall 101", "lecture_hall", 60, "Main Building", 1, True, False),
+    ("CSE-102", "Lecture Hall 102", "lecture_hall", 50, "Main Building", 1, True, False),
+    ("CSE-201", "Lecture Hall 201", "lecture_hall", 45, "Main Building", 2, True, False),
+    ("CSE-202", "Lecture Hall 202", "lecture_hall", 40, "Main Building", 2, True, False),
     ("LAB-01", "Computer Lab 1", "lab", 30, "Science Block", 1, True, True),
     ("LAB-02", "Computer Lab 2", "lab", 25, "Science Block", 1, True, True),
-    ("EEE-101", "EEE Lecture Hall", "lecture", 55, "Engineering Block", 1, True, False),
+    ("EEE-101", "EEE Lecture Hall", "lecture_hall", 55, "Engineering Block", 1, True, False),
     ("EEE-LAB", "EEE Lab", "lab", 20, "Engineering Block", 1, True, True),
-    ("BBA-101", "BBA Lecture Hall", "lecture", 50, "Business Block", 1, True, False),
-    ("ENG-101", "English Seminar Room", "seminar", 35, "Arts Block", 1, True, False),
-    ("LAW-101", "Moot Court Hall", "seminar", 40, "Law Block", 1, True, False),
-    ("AUDI", "Auditorium", "lecture", 200, "Main Building", 1, True, False),
+    ("BBA-101", "BBA Lecture Hall", "lecture_hall", 50, "Business Block", 1, True, False),
+    ("ENG-101", "English Seminar Room", "seminar_room", 35, "Arts Block", 1, True, False),
+    ("LAW-101", "Moot Court Hall", "seminar_room", 40, "Law Block", 1, True, False),
+    ("AUDI", "Auditorium", "lecture_hall", 200, "Main Building", 1, True, False),
 )
 
 SEED_COURSES: tuple[tuple[str, str, str, float, int, int], ...] = (
