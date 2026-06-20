@@ -101,15 +101,16 @@ export function TimetableGrid({ details, periods, onCellClick, onCellEdit, onSlo
 
     if (periods && periods.length > 0) {
       return periods.map((p) => {
-        const dayMap = slotsMap.get(p.start_time) ?? new Map()
+        const st = p.start_time.slice(0, 5)
+        const dayMap = slotsMap.get(st) ?? new Map()
         const cells: Record<string, SlotEntry | null> = {}
         for (const day of DAYS) {
           cells[day] = dayMap.get(day) ?? null
         }
         return {
-          label: `${p.name} (${p.start_time.slice(0, 5)}-${p.end_time.slice(0, 5)})`,
-          startTime: p.start_time,
-          endTime: p.end_time,
+          label: `${p.name} (${st}-${p.end_time.slice(0, 5)})`,
+          startTime: st,
+          endTime: p.end_time.slice(0, 5),
           cells,
         }
       })
