@@ -52,9 +52,8 @@ export interface RoutineDetail {
   room_code?: string
   section_id: string
   section_name?: string
+  period_id?: string | null
   day_of_week: DayOfWeek
-  time_slot_id: string
-  time_slot_name?: string
   start_time: string
   end_time: string
   is_lab: boolean

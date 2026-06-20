@@ -65,6 +65,7 @@ export interface CreateDetailPayload {
   teacher_id: string
   room_id: string
   section_id: string
+  period_id?: string | null
   day_of_week: string
   start_time: string
   end_time: string

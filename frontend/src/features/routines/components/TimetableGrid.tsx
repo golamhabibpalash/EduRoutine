@@ -44,7 +44,7 @@ interface SlotEntry {
 interface TimetableGridProps {
   details: RoutineDetail[]
   periods?: Period[]
-  onCellClick?: (day: DayOfWeek, startTime: string, endTime: string) => void
+  onCellClick?: (day: DayOfWeek, startTime: string, endTime: string, periodId: string) => void
   onCellEdit?: (detailId: string) => void
   onSlotMove?: (detailId: string, targetDay: DayOfWeek, targetStartTime: string) => void
   conflicts?: RoutineConflict[]
@@ -111,6 +111,7 @@ export function TimetableGrid({ details, periods, onCellClick, onCellEdit, onSlo
           label: `${p.name} (${st}-${p.end_time.slice(0, 5)})`,
           startTime: st,
           endTime: p.end_time.slice(0, 5),
+          periodId: p.id,
           cells,
         }
       })
@@ -135,7 +136,7 @@ export function TimetableGrid({ details, periods, onCellClick, onCellEdit, onSlo
       for (const day of DAYS) {
         cells[day] = dayMap.get(day) ?? null
       }
-      return { label: slot.label, startTime: slot.startTime, endTime: slot.endTime, cells }
+      return { label: slot.label, startTime: slot.startTime, endTime: slot.endTime, periodId: "", cells }
     })
   }, [details, periods])
 
@@ -229,7 +230,7 @@ export function TimetableGrid({ details, periods, onCellClick, onCellEdit, onSlo
                         onCellEdit(entry.id)
                       }
                       if (!entry && onCellClick) {
-                        onCellClick(day, row.startTime, row.endTime)
+                        onCellClick(day, row.startTime, row.endTime, row.periodId)
                       }
                     }}
                   >
@@ -259,7 +260,7 @@ export function TimetableGrid({ details, periods, onCellClick, onCellEdit, onSlo
                             ? "border-primary bg-primary/10"
                             : "border-muted-300 hover:bg-accent/30"
                         }`}
-                        onClick={() => onCellClick?.(day, row.startTime, row.endTime)}
+                        onClick={() => onCellClick?.(day, row.startTime, row.endTime, row.periodId)}
                       />
                     )}
                   </td>

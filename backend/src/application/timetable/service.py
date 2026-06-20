@@ -2,13 +2,15 @@
 
 from __future__ import annotations
 
+from collections.abc import Awaitable, Callable
 from datetime import time
+from typing import Any
 from uuid import UUID, uuid4
 
 from src.application.common.dto.pagination import Page, PageParams
 from src.application.common.exceptions import ConflictError, ValidationError
 from src.application.common.interfaces.unit_of_work import UnitOfWork
-from src.application.timetable.dto import PeriodDTO, RoutineDTO, RoutineDetailDTO
+from src.application.timetable.dto import PeriodDTO, RoutineDetailDTO, RoutineDTO
 from src.domain.timetable.entities.period import Period
 from src.domain.timetable.entities.routine import Routine, RoutineDetail
 from src.domain.timetable.exceptions import PeriodNotFoundError, RoutineNotFoundError
@@ -31,8 +33,8 @@ class PeriodService:
             id=p.id,
             name=p.name,
             period_number=p.period_number,
-            start_time=p.start_time,
-            end_time=p.end_time,
+            start_time=p.start_time.strftime("%H:%M"),
+            end_time=p.end_time.strftime("%H:%M"),
             duration_minutes=p.duration_minutes,
             is_break=p.is_break,
             created_at=p.created_at or utcnow(),
@@ -150,7 +152,9 @@ class RoutineService:
         )
 
     @staticmethod
-    async def _lookup_name(getter, entity_id) -> str | None:
+    async def _lookup_name(
+        getter: Callable[[UUID], Awaitable[Any]], entity_id: UUID | None
+    ) -> str | None:
         if entity_id is None:
             return None
         entity = await getter(entity_id)
@@ -165,6 +169,7 @@ class RoutineService:
             teacher_id=d.teacher_id,
             room_id=d.room_id,
             section_id=d.section_id,
+            period_id=d.period_id,
             day_of_week=d.day_of_week,
             start_time=d.start_time,
             end_time=d.end_time,
@@ -172,6 +177,22 @@ class RoutineService:
             created_at=d.created_at,
             updated_at=d.updated_at,
         )
+
+    async def _resolve_times(
+        self, period_id: UUID | None, start_time: str | None, end_time: str | None
+    ) -> tuple[str, str]:
+        """Resolve a slot's (start, end) as ``HH:MM``.
+
+        ``period_id`` is the source of truth when given; otherwise explicit times are used.
+        """
+        if period_id is not None:
+            period = await self._uow.periods.get(period_id)
+            if period is None:
+                raise ValidationError(f"Period '{period_id}' does not exist.")
+            return period.start_time.strftime("%H:%M"), period.end_time.strftime("%H:%M")
+        if start_time and end_time:
+            return start_time, end_time
+        raise ValidationError("Provide a period_id or both start_time and end_time.")
 
     async def _require(self, routine_id: UUID) -> Routine:
         r = await self._uow.routines.get(routine_id)
@@ -272,6 +293,7 @@ class RoutineService:
                 teacher_id=d.teacher_id,
                 room_id=d.room_id,
                 section_id=d.section_id,
+                period_id=d.period_id,
                 day_of_week=d.day_of_week,
                 start_time=d.start_time,
                 end_time=d.end_time,
@@ -296,10 +318,12 @@ class RoutineService:
         room_id: UUID,
         section_id: UUID,
         day_of_week: str,
-        start_time: str,
-        end_time: str,
+        period_id: UUID | None = None,
+        start_time: str | None = None,
+        end_time: str | None = None,
         is_lab: bool = False,
     ) -> RoutineDetailDTO:
+        resolved_start, resolved_end = await self._resolve_times(period_id, start_time, end_time)
         detail = RoutineDetail(
             id=uuid4(),
             routine_id=routine_id,
@@ -307,9 +331,10 @@ class RoutineService:
             teacher_id=teacher_id,
             room_id=room_id,
             section_id=section_id,
+            period_id=period_id,
             day_of_week=day_of_week,
-            start_time=start_time,
-            end_time=end_time,
+            start_time=resolved_start,
+            end_time=resolved_end,
             is_lab=is_lab,
         )
         await self._uow.details.add(detail)
@@ -325,20 +350,28 @@ class RoutineService:
         room_id: UUID,
         section_id: UUID,
         day_of_week: str,
-        start_time: str,
-        end_time: str,
-        is_lab: bool,
+        period_id: UUID | None = None,
+        start_time: str | None = None,
+        end_time: str | None = None,
+        is_lab: bool = False,
     ) -> RoutineDetailDTO:
         detail = await self._uow.details.get(detail_id)
         if detail is None:
             raise RoutineNotFoundError(f"Routine detail '{detail_id}' not found.")
+        # Fall back to the detail's existing period/times when the caller omits them.
+        resolved_start, resolved_end = await self._resolve_times(
+            period_id if period_id is not None else detail.period_id,
+            start_time if start_time is not None else detail.start_time,
+            end_time if end_time is not None else detail.end_time,
+        )
         detail.course_id = course_id
         detail.teacher_id = teacher_id
         detail.room_id = room_id
         detail.section_id = section_id
+        detail.period_id = period_id if period_id is not None else detail.period_id
         detail.day_of_week = day_of_week
-        detail.start_time = start_time
-        detail.end_time = end_time
+        detail.start_time = resolved_start
+        detail.end_time = resolved_end
         detail.is_lab = is_lab
         await self._uow.details.update(detail)
         await self._uow.commit()

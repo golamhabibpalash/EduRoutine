@@ -22,6 +22,7 @@ export interface SlotFormData {
   room_code: string
   section_id: string
   section_name: string
+  period_id: string | null
   startTime: string
   endTime: string
   isLab: boolean
@@ -36,6 +37,7 @@ interface SlotDialogProps {
   defaultDay?: DayOfWeek | null
   defaultStartTime?: string | null
   defaultEndTime?: string | null
+  defaultPeriodId?: string | null
   courses?: SelectOption[]
   teachers?: SelectOption[]
   rooms?: SelectOption[]
@@ -128,6 +130,7 @@ export function SlotDialog({
   defaultDay,
   defaultStartTime,
   defaultEndTime,
+  defaultPeriodId,
   courses = [],
   teachers = [],
   rooms = [],
@@ -137,6 +140,7 @@ export function SlotDialog({
   const [teacherId, setTeacherId] = useState("")
   const [roomId, setRoomId] = useState("")
   const [sectionId, setSectionId] = useState("")
+  const [periodId, setPeriodId] = useState<string | null>(null)
   const [startTime, setStartTime] = useState("")
   const [endTime, setEndTime] = useState("")
   const [isLab, setIsLab] = useState(false)
@@ -147,6 +151,7 @@ export function SlotDialog({
       setTeacherId(initialData.teacher_id)
       setRoomId(initialData.room_id)
       setSectionId(initialData.section_id)
+      setPeriodId(initialData.period_id)
       setStartTime(initialData.startTime)
       setEndTime(initialData.endTime)
       setIsLab(initialData.isLab)
@@ -155,11 +160,12 @@ export function SlotDialog({
       setTeacherId("")
       setRoomId("")
       setSectionId("")
+      setPeriodId(defaultPeriodId ?? null)
       setStartTime(defaultStartTime ?? "08:00")
       setEndTime(defaultEndTime ?? "08:50")
       setIsLab(false)
     }
-  }, [initialData, defaultStartTime, defaultEndTime, open])
+  }, [initialData, defaultStartTime, defaultEndTime, defaultPeriodId, open])
 
   function lookup(id: string, items: SelectOption[]) {
     return items.find((o) => o.id === id)
@@ -188,6 +194,7 @@ export function SlotDialog({
       room_code: room?.code ?? "",
       section_id: sectionId,
       section_name: section?.name ?? "",
+      period_id: periodId,
       startTime,
       endTime,
       isLab,

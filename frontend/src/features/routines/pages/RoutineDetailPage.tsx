@@ -39,6 +39,7 @@ export function RoutineDetailPage({ routineId }: RoutineDetailPageProps) {
   const [pendingDay, setPendingDay] = useState<DayOfWeek | null>(null)
   const [pendingTime, setPendingTime] = useState<string | null>(null)
   const [pendingEndTime, setPendingEndTime] = useState<string | null>(null)
+  const [pendingPeriodId, setPendingPeriodId] = useState<string | null>(null)
 
   const publishMutation = usePublishRoutine()
   const archiveMutation = useArchiveRoutine()
@@ -52,12 +53,13 @@ export function RoutineDetailPage({ routineId }: RoutineDetailPageProps) {
   const details: RoutineDetail[] = detailsData ?? []
   const loading = routineLoading || detailsLoading
 
-  function handleCellClick(day: DayOfWeek, startTime: string, endTime: string) {
+  function handleCellClick(day: DayOfWeek, startTime: string, endTime: string, periodId: string) {
     setEditingSlot(null)
     setEditingId(null)
     setPendingDay(day)
     setPendingTime(startTime)
     setPendingEndTime(endTime)
+    setPendingPeriodId(periodId)
     setDialogOpen(true)
   }
 
@@ -77,11 +79,13 @@ export function RoutineDetailPage({ routineId }: RoutineDetailPageProps) {
       section_name: detail.section_name ?? "",
       startTime: detail.start_time,
       endTime: detail.end_time,
+      period_id: detail.period_id ?? null,
       isLab: detail.is_lab,
     })
     setPendingDay(detail.day_of_week)
     setPendingTime(detail.start_time)
     setPendingEndTime(detail.end_time)
+    setPendingPeriodId(detail.period_id ?? null)
     setDialogOpen(true)
   }
 
@@ -92,6 +96,7 @@ export function RoutineDetailPage({ routineId }: RoutineDetailPageProps) {
         teacher_id: data.teacher_id,
         room_id: data.room_id,
         section_id: data.section_id,
+        period_id: data.period_id,
         start_time: data.startTime,
         end_time: data.endTime,
         is_lab: data.isLab,
@@ -103,6 +108,7 @@ export function RoutineDetailPage({ routineId }: RoutineDetailPageProps) {
           setPendingDay(null)
           setPendingTime(null)
           setPendingEndTime(null)
+          setPendingPeriodId(null)
         },
       })
     } else if (pendingDay && pendingTime) {
@@ -112,6 +118,7 @@ export function RoutineDetailPage({ routineId }: RoutineDetailPageProps) {
         teacher_id: data.teacher_id,
         room_id: data.room_id,
         section_id: data.section_id,
+        period_id: data.period_id,
         day_of_week: pendingDay,
         start_time: data.startTime,
         end_time: data.endTime,
@@ -124,6 +131,7 @@ export function RoutineDetailPage({ routineId }: RoutineDetailPageProps) {
           setPendingDay(null)
           setPendingTime(null)
           setPendingEndTime(null)
+          setPendingPeriodId(null)
         },
       })
     }
@@ -138,6 +146,8 @@ export function RoutineDetailPage({ routineId }: RoutineDetailPageProps) {
           setEditingId(null)
           setPendingDay(null)
           setPendingTime(null)
+          setPendingEndTime(null)
+          setPendingPeriodId(null)
         },
       })
     }
@@ -276,6 +286,7 @@ export function RoutineDetailPage({ routineId }: RoutineDetailPageProps) {
         defaultDay={pendingDay}
         defaultStartTime={pendingTime}
         defaultEndTime={pendingEndTime}
+        defaultPeriodId={pendingPeriodId}
         courses={courses.filter((c) => c.department_id === routine?.department_id).map((c) => ({ id: c.id, name: c.title, code: c.code }))}
         teachers={teachers
           .filter((t) => t.department === routine?.department_name)
